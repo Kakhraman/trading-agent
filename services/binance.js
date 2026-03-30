@@ -23,6 +23,36 @@ const publicClient = axios.create({
   timeout: 10000,
 });
 
+// ── Exchange info cache (step sizes) ──────────────────────────────────────────
+
+let _exchangeInfoCache = null;
+let _exchangeInfoCacheAt = 0;
+const EXCHANGE_INFO_TTL = 60 * 60 * 1000; // 1 hour
+
+async function getExchangeInfo() {
+  if (_exchangeInfoCache && Date.now() - _exchangeInfoCacheAt < EXCHANGE_INFO_TTL) {
+    return _exchangeInfoCache;
+  }
+  const { data } = await publicClient.get('/v3/exchangeInfo');
+  _exchangeInfoCache = data;
+  _exchangeInfoCacheAt = Date.now();
+  return data;
+}
+
+async function getStepSize(symbol) {
+  const info = await getExchangeInfo();
+  const sym = info.symbols.find(s => s.symbol === symbol);
+  if (!sym) return null;
+  const lot = sym.filters.find(f => f.filterType === 'LOT_SIZE');
+  return lot ? parseFloat(lot.stepSize) : null;
+}
+
+function floorToStepSize(quantity, stepSize) {
+  const precision = stepSize < 1 ? Math.round(-Math.log10(stepSize)) : 0;
+  const factor = Math.pow(10, precision);
+  return Math.floor(quantity * factor) / factor;
+}
+
 const privateClient = axios.create({
   baseURL: BASE_URL,
   timeout: 10000,
@@ -87,12 +117,17 @@ async function getBalance(asset = 'USDT') {
  * @param {number} quantity  base asset quantity
  */
 async function placeMarketOrder(symbol, side, quantity) {
+  const stepSize = await getStepSize(symbol);
+  const adjQty = stepSize ? floorToStepSize(quantity, stepSize) : quantity;
+  const precision = stepSize && stepSize < 1 ? Math.round(-Math.log10(stepSize)) : 0;
+  const qtyStr = adjQty.toFixed(precision);
+
   const timestamp = Date.now();
   const params = {
     symbol,
     side,
     type: 'MARKET',
-    quantity: quantity.toFixed(6),
+    quantity: qtyStr,
     timestamp,
   };
   const query = buildQuery(params);
