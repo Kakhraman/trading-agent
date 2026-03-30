@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trading Bot — Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
+
+    /* ── Header / Nav ── */
+    header {
+      background: #161b22; border-bottom: 1px solid #30363d;
+      padding: 0 2rem; display: flex; align-items: center; gap: 2rem; height: 56px; position: sticky; top: 0; z-index: 10;
+    }
+    header h1 { font-size: 1.05rem; font-weight: 700; color: #f0f6fc; white-space: nowrap; }
+    nav { display: flex; gap: .25rem; }
+    nav a {
+      color: #8b949e; text-decoration: none; font-size: .875rem;
+      padding: .35rem .85rem; border-radius: 6px; transition: background .15s, color .15s;
+    }
+    nav a:hover, nav a.active { background: #21262d; color: #f0f6fc; }
+
+    main { max-width: 1300px; margin: 0 auto; padding: 1.5rem 2rem; }
+    .page { display: none; } .page.active { display: block; }
+
+    /* ── Stat cards ── */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.75rem; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 1.1rem 1.4rem; }
+    .card .label { font-size: .7rem; text-transform: uppercase; letter-spacing: .9px; color: #8b949e; margin-bottom: .4rem; }
+    .card .value { font-size: 1.5rem; font-weight: 700; color: #f0f6fc; }
+    .green { color: #3fb950 !important; } .red { color: #f85149 !important; } .yellow { color: #d29922 !important; }
+
+    /* ── Section headers ── */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .75rem; border-bottom: 1px solid #21262d; padding-bottom: .5rem; }
+    .section-header h2 { font-size: .95rem; font-weight: 600; color: #f0f6fc; }
+
+    /* ── Toolbar ── */
+    .toolbar { display: flex; align-items: center; gap: .6rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .refresh-info { font-size: .72rem; color: #8b949e; margin-left: auto; }
+
+    /* ── Filter bar ── */
+    .filter-bar { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+    .filter-bar select, .filter-bar input {
+      background: #161b22; border: 1px solid #30363d; border-radius: 6px;
+      color: #c9d1d9; padding: .35rem .75rem; font-size: .82rem; outline: none;
+      transition: border-color .15s;
+    }
+    .filter-bar select:focus, .filter-bar input:focus { border-color: #388bfd; }
+    .filter-bar input { width: 160px; }
+    .filter-label { font-size: .78rem; color: #8b949e; }
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid #30363d; }
+    table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+    thead th {
+      background: #161b22; color: #8b949e; font-weight: 600;
+      padding: .6rem 1rem; border-bottom: 1px solid #30363d;
+      white-space: nowrap; text-align: left;
+    }
+    thead th.sortable { cursor: pointer; user-select: none; }
+    thead th.sortable:hover { color: #f0f6fc; }
+    thead th .sort-icon { display: inline-block; margin-left: .3rem; opacity: .4; font-size: .7rem; }
+    thead th.sort-asc .sort-icon::after  { content: '▲'; opacity: 1; }
+    thead th.sort-desc .sort-icon::after { content: '▼'; opacity: 1; }
+    thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: '⇅'; }
+
+    tbody tr { border-bottom: 1px solid #21262d; transition: background .1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #161b22; }
+    tbody td { padding: .55rem 1rem; white-space: nowrap; }
+    .empty-row td { color: #8b949e; text-align: center; padding: 2.5rem; }
+
+    /* ── Badges ── */
+    .badge { display: inline-block; padding: .18rem .55rem; border-radius: 20px; font-size: .72rem; font-weight: 700; letter-spacing: .3px; }
+    .badge-open   { background: #388bfd22; color: #388bfd; }
+    .badge-closed { background: #3fb95022; color: #3fb950; }
+    .badge-BUY    { background: #3fb95022; color: #3fb950; }
+    .badge-SELL   { background: #f8514922; color: #f85149; }
+    .badge-HOLD   { background: #8b949e22; color: #8b949e; }
+    .badge-info   { background: #8b949e22; color: #8b949e; }
+    .badge-warn   { background: #d2992222; color: #d29922; }
+    .badge-error  { background: #f8514922; color: #f85149; }
+    .badge-active { background: #388bfd22; color: #388bfd; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: .35rem;
+      padding: .4rem .9rem; border-radius: 6px; border: 1px solid #30363d;
+      background: #21262d; color: #c9d1d9; cursor: pointer; font-size: .82rem;
+      transition: background .15s, border-color .15s; white-space: nowrap;
+    }
+    .btn:hover { background: #30363d; border-color: #8b949e; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn.primary { background: #238636; border-color: #2ea043; color: #fff; }
+    .btn.primary:hover:not(:disabled) { background: #2ea043; }
+
+    /* ── Open trades cards ── */
+    .open-trades-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
+    .open-trade-card {
+      background: #161b22; border: 1px solid #30363d; border-radius: 10px;
+      padding: 1.1rem 1.3rem;
+    }
+    .open-trade-card .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .85rem; }
+    .open-trade-card .symbol { font-size: 1rem; font-weight: 700; color: #f0f6fc; }
+    .open-trade-card .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem .75rem; }
+    .open-trade-card .item .lbl { font-size: .65rem; text-transform: uppercase; letter-spacing: .8px; color: #8b949e; }
+    .open-trade-card .item .val { font-size: .95rem; font-weight: 600; color: #f0f6fc; margin-top: .1rem; }
+
+    /* ── Watchlist signal color ── */
+    .signal-BUY  { color: #3fb950; font-weight: 700; }
+    .signal-SELL { color: #f85149; font-weight: 700; }
+    .signal-HOLD { color: #8b949e; }
+
+    /* ── RSI color ── */
+    .rsi-low  { color: #3fb950; }
+    .rsi-high { color: #f85149; }
+    .rsi-mid  { color: #c9d1d9; }
+
+    /* ── Trend arrow ── */
+    .trend-bull { color: #3fb950; } .trend-bear { color: #f85149; }
+
+    @media (max-width: 700px) {
+      header { gap: 1rem; } main { padding: 1rem; }
+      .filter-bar input { width: 120px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="offline-banner" style="display:none;background:#b91c1c;color:#fff;text-align:center;padding:.55rem;font-size:.85rem;font-weight:600;letter-spacing:.3px">
+  &#9888; Server offline — make sure <code style="background:rgba(0,0,0,.25);padding:.1rem .4rem;border-radius:4px">npm start</code> is running, then refresh.
+</div>
+<header>
+  <h1>&#9881; Trading Bot</h1>
+  <nav>
+    <a href="#" class="active" data-page="dashboard">Dashboard</a>
+    <a href="#" data-page="watchlist">Watchlist</a>
+    <a href="#" data-page="trades">Trades</a>
+    <a href="#" data-page="logs">Logs</a>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ════════════════════════════ DASHBOARD ════════════════════════════ -->
+  <div id="page-dashboard" class="page active">
+    <div class="toolbar">
+      <button class="btn primary" id="btn-tick">&#9654; Run Bot Now</button>
+      <button class="btn" id="btn-refresh-dash">&#8635; Refresh</button>
+      <span class="refresh-info" id="dash-refresh-time"></span>
+    </div>
+
+    <div class="cards">
+      <div class="card"><div class="label">USDT Balance</div><div class="value" id="stat-balance">—</div></div>
+      <div class="card"><div class="label">Total PnL</div><div class="value" id="stat-pnl">—</div></div>
+      <div class="card"><div class="label">Open Trades</div><div class="value" id="stat-open">—</div></div>
+      <div class="card"><div class="label">Total Trades</div><div class="value" id="stat-total">—</div></div>
+      <div class="card"><div class="label">Win Rate</div><div class="value" id="stat-winrate">—</div></div>
+    </div>
+
+    <div class="section-header"><h2>Open Positions</h2></div>
+    <div id="open-trades-grid" class="open-trades-grid">
+      <p style="color:#8b949e;font-size:.875rem">No open positions.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════ WATCHLIST ════════════════════════════ -->
+  <div id="page-watchlist" class="page">
+    <div class="toolbar">
+      <button class="btn" id="btn-refresh-wl">&#8635; Refresh</button>
+      <span style="font-size:.78rem;color:#8b949e">Live indicators for all tracked pairs (15m)</span>
+      <span class="refresh-info" id="wl-refresh-time"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="wl-table">
+        <thead>
+          <tr>
+            <th rowspan="2">Symbol</th>
+            <th rowspan="2" class="sortable" data-col="price">Price<span class="sort-icon"></span></th>
+            <th colspan="4" style="text-align:center;border-bottom:1px solid #388bfd44;color:#388bfd">15m Trend</th>
+            <th colspan="4" style="text-align:center;border-bottom:1px solid #d2992244;color:#d29922">5m Bounce</th>
+            <th rowspan="2">Position</th>
+          </tr>
+          <tr>
+            <th class="sortable" data-col="ema50">EMA 50<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="ema200">EMA 200<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="rsi15m">RSI<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="signal15m">Signal<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="ema9">EMA 9<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="ema21">EMA 21<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="rsi5m">RSI<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="signal5m">Signal<span class="sort-icon"></span></th>
+          </tr>
+        </thead>
+        <tbody id="wl-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════ TRADES ══════════════════════════════ -->
+  <div id="page-trades" class="page">
+    <div class="toolbar">
+      <div class="filter-bar">
+        <span class="filter-label">Symbol:</span>
+        <select id="filter-symbol">
+          <option value="">All</option>
+        </select>
+        <span class="filter-label">Status:</span>
+        <select id="filter-status">
+          <option value="">All</option>
+          <option value="OPEN">Open</option>
+          <option value="CLOSED">Closed</option>
+        </select>
+        <span class="filter-label">Strategy:</span>
+        <select id="filter-strategy">
+          <option value="">All</option>
+          <option value="15m">15m Trend</option>
+          <option value="5m">5m Bounce</option>
+        </select>
+        <span class="filter-label">Reason:</span>
+        <select id="filter-reason">
+          <option value="">All</option>
+          <option value="SIGNAL">Signal</option>
+          <option value="STOP_LOSS">Stop Loss</option>
+          <option value="TAKE_PROFIT">Take Profit</option>
+        </select>
+        <input id="filter-search" type="text" placeholder="Search ID…" />
+        <button class="btn" id="btn-clear-filters">&#10005; Clear</button>
+      </div>
+      <button class="btn" id="btn-refresh-trades">&#8635; Refresh</button>
+      <span class="refresh-info" id="trades-refresh-time"></span>
+    </div>
+    <div id="trades-count" style="font-size:.78rem;color:#8b949e;margin-bottom:.75rem"></div>
+    <div class="table-wrap">
+      <table id="trades-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th class="sortable" data-col="symbol">Symbol<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="strategy">Strategy<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="status">Status<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="entryTime">Entry Time<span class="sort-icon sort-desc"></span></th>
+            <th class="sortable" data-col="entryPrice">Entry Price<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="exitTime">Exit Time<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="exitPrice">Exit Price<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="quantity">Qty<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="pnl">PnL (USDT)<span class="sort-icon"></span></th>
+            <th class="sortable" data-col="closeReason">Reason<span class="sort-icon"></span></th>
+          </tr>
+        </thead>
+        <tbody id="trades-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════ LOGS ════════════════════════════════ -->
+  <div id="page-logs" class="page">
+    <div class="toolbar">
+      <div class="filter-bar">
+        <span class="filter-label">Level:</span>
+        <select id="filter-log-level">
+          <option value="">All</option>
+          <option value="INFO">INFO</option>
+          <option value="WARN">WARN</option>
+          <option value="ERROR">ERROR</option>
+        </select>
+        <input id="filter-log-search" type="text" placeholder="Search message…" style="width:220px" />
+      </div>
+      <button class="btn" id="btn-refresh-logs">&#8635; Refresh</button>
+      <span class="refresh-info" id="logs-refresh-time"></span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width:200px">Time</th><th style="width:80px">Level</th><th>Message</th></tr>
+        </thead>
+        <tbody id="logs-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════
+// Utilities
+// ════════════════════════════════════════════════════════════════════════
+const fmt = (n, d = 2) => (n == null ? '—' : parseFloat(n).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d }));
+const fmtDate = iso => iso ? new Date(iso).toLocaleString() : '—';
+const setRefreshTime = id => { const el = document.getElementById(id); if (el) el.textContent = 'Updated: ' + new Date().toLocaleTimeString(); };
+
+// ════════════════════════════════════════════════════════════════════════
+// Navigation
+// ════════════════════════════════════════════════════════════════════════
+document.querySelectorAll('nav a').forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelectorAll('nav a').forEach(l => l.classList.remove('active'));
+    link.classList.add('active');
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + link.dataset.page).classList.add('active');
+    if (link.dataset.page === 'watchlist') loadWatchlist();
+    if (link.dataset.page === 'trades')    loadTrades();
+    if (link.dataset.page === 'logs')      loadLogs();
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════
+// Dashboard
+// ════════════════════════════════════════════════════════════════════════
+async function loadDashboard() {
+  try {
+    const res  = await fetch('/api/dashboard');
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Server error');
+    document.getElementById('offline-banner').style.display = 'none';
+    const data = json.data;
+
+    document.getElementById('stat-balance').textContent = '$' + fmt(data.usdtBalance);
+
+    const pnlEl = document.getElementById('stat-pnl');
+    const sign = data.totalPnl >= 0 ? '+' : '';
+    pnlEl.textContent = sign + fmt(data.totalPnl) + ' USDT';
+    pnlEl.className = 'value ' + (data.totalPnl >= 0 ? 'green' : 'red');
+
+    document.getElementById('stat-open').textContent  = data.openTrades.length;
+    document.getElementById('stat-total').textContent = data.totalTrades;
+
+    const wrEl = document.getElementById('stat-winrate');
+    if (data.winRate !== null) {
+      wrEl.textContent = fmt(data.winRate, 1) + '%';
+      wrEl.className = 'value ' + (data.winRate >= 50 ? 'green' : 'red');
+    } else {
+      wrEl.textContent = '—';
+      wrEl.className = 'value';
+    }
+
+    const grid = document.getElementById('open-trades-grid');
+    if (!data.openTrades.length) {
+      grid.innerHTML = '<p style="color:#8b949e;font-size:.875rem">No open positions.</p>';
+    } else {
+      grid.innerHTML = data.openTrades.map(t => {
+        const upnl = t.unrealizedPnl;
+        const upnlColor = upnl == null ? '' : upnl >= 0 ? 'color:#3fb950' : 'color:#f85149';
+        const upnlText  = upnl == null ? '—' : (upnl >= 0 ? '+' : '') + fmt(upnl) + ' USDT';
+        return `<div class="open-trade-card">
+          <div class="card-header">
+            <span class="symbol">${t.symbol}</span>
+            <span class="badge badge-open">OPEN</span>
+          </div>
+          <div class="grid2">
+            <div class="item"><div class="lbl">Entry Price</div><div class="val">$${fmt(t.entryPrice)}</div></div>
+            <div class="item"><div class="lbl">Current Price</div><div class="val">$${fmt(t.currentPrice)}</div></div>
+            <div class="item"><div class="lbl">Quantity</div><div class="val">${fmt(t.quantity, 6)}</div></div>
+            <div class="item"><div class="lbl">Unrealized PnL</div><div class="val" style="${upnlColor}">${upnlText}</div></div>
+            <div class="item"><div class="lbl">Stop Loss</div><div class="val red">$${fmt(t.stopLoss)}</div></div>
+            <div class="item"><div class="lbl">Take Profit</div><div class="val green">$${fmt(t.takeProfit)}</div></div>
+            <div class="item"><div class="lbl">RSI at Entry</div><div class="val">${fmt(t.indicators?.rsi14, 1)}</div></div>
+            <div class="item"><div class="lbl">Entry Time</div><div class="val" style="font-size:.8rem">${fmtDate(t.entryTime)}</div></div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    setRefreshTime('dash-refresh-time');
+  } catch (err) {
+    document.getElementById('offline-banner').style.display = 'block';
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// Watchlist
+// ════════════════════════════════════════════════════════════════════════
+let wlSortCol = null, wlSortDir = 1;
+
+function renderWatchlist(data) {
+  let rows = [...data];
+  if (wlSortCol) {
+    rows.sort((a, b) => {
+      const av = a[wlSortCol] ?? '';
+      const bv = b[wlSortCol] ?? '';
+      return typeof av === 'number' ? (av - bv) * wlSortDir : av.toString().localeCompare(bv.toString()) * wlSortDir;
+    });
+  }
+
+  const tbody = document.getElementById('wl-tbody');
+  tbody.innerHTML = rows.map(r => {
+    if (r.error) return `<tr><td>${r.symbol}</td><td colspan="10" style="color:#f85149">${r.error}</td></tr>`;
+    const rsi15Class = r.rsi15m < 30 ? 'rsi-low' : r.rsi15m > 70 ? 'rsi-high' : 'rsi-mid';
+    const rsi5Class  = r.rsi5m  < 35 ? 'rsi-low' : r.rsi5m  > 65 ? 'rsi-high' : 'rsi-mid';
+    const pos = r.hasOpenTrade
+      ? `<span class="badge badge-active">&#9679; ${r.openStrategy?.toUpperCase() || 'ACTIVE'}</span>`
+      : '<span style="color:#8b949e;font-size:.78rem">—</span>';
+    return `<tr>
+      <td style="font-weight:600;color:#f0f6fc">${r.symbol}</td>
+      <td>$${fmt(r.price)}</td>
+      <td style="color:#8b949e">$${fmt(r.ema50)}</td>
+      <td style="color:#8b949e">$${fmt(r.ema200)}</td>
+      <td class="${rsi15Class}">${fmt(r.rsi15m, 1)}</td>
+      <td><span class="signal-${r.signal15m}">${r.signal15m}</span></td>
+      <td style="color:#8b949e">$${fmt(r.ema9)}</td>
+      <td style="color:#8b949e">$${fmt(r.ema21)}</td>
+      <td class="${rsi5Class}">${fmt(r.rsi5m, 1)}</td>
+      <td><span class="signal-${r.signal5m}">${r.signal5m}</span></td>
+      <td>${pos}</td>
+    </tr>`;
+  }).join('');
+
+  // Update sort icons
+  document.querySelectorAll('#wl-table thead th.sortable').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (th.dataset.col === wlSortCol) th.classList.add(wlSortDir === 1 ? 'sort-asc' : 'sort-desc');
+  });
+}
+
+let wlData = [];
+async function loadWatchlist() {
+  const tbody = document.getElementById('wl-tbody');
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#8b949e">Fetching indicators… (may take ~5 s)</td></tr>';
+  try {
+    const res  = await fetch('/api/watchlist');
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Server error');
+    wlData = json.data;
+    renderWatchlist(wlData);
+    setRefreshTime('wl-refresh-time');
+    loadDashboard();
+    loadTrades();
+  } catch (err) {
+    console.error('Watchlist error:', err);
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;color:#f85149">Failed to load watchlist: ${err.message}</td></tr>`;
+  }
+}
+
+document.querySelectorAll('#wl-table thead th.sortable').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (wlSortCol === col) wlSortDir *= -1;
+    else { wlSortCol = col; wlSortDir = 1; }
+    renderWatchlist(wlData);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════
+// Trades — with filter + sort
+// ════════════════════════════════════════════════════════════════════════
+let allTrades = [];
+let tradeSort = { col: 'entryTime', dir: -1 };
+
+const WATCHLIST = ['BTCUSDT','ETHUSDT','BNBUSDT','XRPUSDT','SOLUSDT','TRXUSDT','DOGEUSDT','BCHUSDT','ADAUSDT','LINKUSDT','TONUSDT','SUIUSDT','AVAXUSDT','LTCUSDT','ASTERUSDT','AAVEUSDT','FILUSDT','ZROUSDT'];
+
+function populateSymbolFilter() {
+  const sel = document.getElementById('filter-symbol');
+  WATCHLIST.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    sel.appendChild(opt);
+  });
+}
+populateSymbolFilter();
+
+function getTradeFilters() {
+  return {
+    symbol:   document.getElementById('filter-symbol').value,
+    strategy: document.getElementById('filter-strategy').value,
+    status:   document.getElementById('filter-status').value,
+    reason:   document.getElementById('filter-reason').value,
+    search:   document.getElementById('filter-search').value.trim().toLowerCase(),
+  };
+}
+
+function applyTradeFilters(trades) {
+  const f = getTradeFilters();
+  return trades.filter(t => {
+    if (f.symbol   && t.symbol !== f.symbol) return false;
+    if (f.strategy && (t.strategy || '15m') !== f.strategy) return false;
+    if (f.status   && t.status !== f.status) return false;
+    if (f.reason   && t.closeReason !== f.reason) return false;
+    if (f.search   && !t.id.toLowerCase().includes(f.search)) return false;
+    return true;
+  });
+}
+
+function applySortTrades(trades) {
+  return [...trades].sort((a, b) => {
+    let av = a[tradeSort.col], bv = b[tradeSort.col];
+    if (av == null) av = tradeSort.dir === 1 ? Infinity : -Infinity;
+    if (bv == null) bv = tradeSort.dir === 1 ? Infinity : -Infinity;
+    if (typeof av === 'string') return av.localeCompare(bv) * tradeSort.dir;
+    return (av - bv) * tradeSort.dir;
+  });
+}
+
+function renderTrades() {
+  const filtered = applyTradeFilters(allTrades);
+  const sorted   = applySortTrades(filtered);
+  const tbody    = document.getElementById('trades-tbody');
+  const countEl  = document.getElementById('trades-count');
+  countEl.textContent = `Showing ${sorted.length} of ${allTrades.length} trades`;
+
+  if (!sorted.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="11">No trades match the current filters.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = sorted.map(t => {
+    const statusBadge = t.status === 'OPEN'
+      ? '<span class="badge badge-open">OPEN</span>'
+      : '<span class="badge badge-closed">CLOSED</span>';
+    const strategyBadge = t.strategy === '5m'
+      ? '<span class="badge" style="background:#d2992222;color:#d29922">5m Bounce</span>'
+      : '<span class="badge" style="background:#388bfd22;color:#388bfd">15m Trend</span>';
+    const pnl = typeof t.pnl === 'number'
+      ? `<span style="color:${t.pnl >= 0 ? '#3fb950' : '#f85149'}">${t.pnl >= 0 ? '+' : ''}${fmt(t.pnl)}</span>`
+      : '—';
+    return `<tr>
+      <td style="font-family:monospace;font-size:.78rem">${t.id}</td>
+      <td style="font-weight:600;color:#f0f6fc">${t.symbol}</td>
+      <td>${strategyBadge}</td>
+      <td>${statusBadge}</td>
+      <td>${fmtDate(t.entryTime)}</td>
+      <td>$${fmt(t.entryPrice)}</td>
+      <td>${fmtDate(t.exitTime)}</td>
+      <td>${t.exitPrice ? '$' + fmt(t.exitPrice) : '—'}</td>
+      <td>${fmt(t.quantity, 6)}</td>
+      <td>${pnl}</td>
+      <td>${t.closeReason || '—'}</td>
+    </tr>`;
+  }).join('');
+
+  // Update sort icons
+  document.querySelectorAll('#trades-table thead th.sortable').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+    if (th.dataset.col === tradeSort.col) th.classList.add(tradeSort.dir === 1 ? 'sort-asc' : 'sort-desc');
+  });
+}
+
+async function loadTrades() {
+  try {
+    const res  = await fetch('/api/trades');
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Server error');
+    const data = json.data;
+    allTrades = data; // already newest-first from server, we re-sort client-side
+    renderTrades();
+    setRefreshTime('trades-refresh-time');
+  } catch (err) { console.error('Trades error:', err); }
+}
+
+// Sort on header click
+document.querySelectorAll('#trades-table thead th.sortable').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (tradeSort.col === col) tradeSort.dir *= -1;
+    else { tradeSort.col = col; tradeSort.dir = -1; }
+    renderTrades();
+  });
+});
+
+// Filter inputs
+['filter-symbol','filter-strategy','filter-status','filter-reason'].forEach(id => {
+  document.getElementById(id).addEventListener('change', renderTrades);
+});
+document.getElementById('filter-search').addEventListener('input', renderTrades);
+document.getElementById('btn-clear-filters').addEventListener('click', () => {
+  document.getElementById('filter-symbol').value   = '';
+  document.getElementById('filter-strategy').value = '';
+  document.getElementById('filter-status').value   = '';
+  document.getElementById('filter-reason').value   = '';
+  document.getElementById('filter-search').value   = '';
+  renderTrades();
+});
+
+// ════════════════════════════════════════════════════════════════════════
+// Logs — with level + search filter
+// ════════════════════════════════════════════════════════════════════════
+let allLogs = [];
+
+function renderLogs() {
+  const level  = document.getElementById('filter-log-level').value;
+  const search = document.getElementById('filter-log-search').value.trim().toLowerCase();
+  const tbody  = document.getElementById('logs-tbody');
+
+  const filtered = allLogs.filter(l => {
+    if (level  && l.level !== level) return false;
+    if (search && !l.message.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="3">No log entries match.</td></tr>';
+    return;
+  }
+
+  const levelColors = { INFO: '#8b949e', WARN: '#d29922', ERROR: '#f85149' };
+  tbody.innerHTML = filtered.map(l => `<tr>
+    <td style="font-family:monospace;font-size:.78rem">${fmtDate(l.timestamp)}</td>
+    <td><span class="badge badge-${l.level.toLowerCase()}">${l.level}</span></td>
+    <td style="color:${levelColors[l.level] || '#c9d1d9'}">${l.message}</td>
+  </tr>`).join('');
+}
+
+async function loadLogs() {
+  try {
+    const res  = await fetch('/api/logs?limit=500');
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Server error');
+    const data = json.data;
+    allLogs = data;
+    renderLogs();
+    setRefreshTime('logs-refresh-time');
+  } catch (err) { console.error('Logs error:', err); }
+}
+
+document.getElementById('filter-log-level').addEventListener('change', renderLogs);
+document.getElementById('filter-log-search').addEventListener('input', renderLogs);
+
+// ════════════════════════════════════════════════════════════════════════
+// Buttons
+// ════════════════════════════════════════════════════════════════════════
+document.getElementById('btn-tick').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-tick');
+  btn.disabled = true; btn.textContent = 'Running…';
+  try {
+    await fetch('/api/bot/tick', { method: 'POST' });
+    btn.textContent = '✓ Triggered';
+    setTimeout(loadDashboard, 4000);
+  } catch { btn.textContent = '! Error'; }
+  setTimeout(() => { btn.textContent = '▶ Run Bot Now'; btn.disabled = false; }, 2500);
+});
+
+document.getElementById('btn-refresh-dash').addEventListener('click', loadDashboard);
+document.getElementById('btn-refresh-wl').addEventListener('click', loadWatchlist);
+document.getElementById('btn-refresh-trades').addEventListener('click', loadTrades);
+document.getElementById('btn-refresh-logs').addEventListener('click', loadLogs);
+
+// ════════════════════════════════════════════════════════════════════════
+// Init + auto-refresh
+// ════════════════════════════════════════════════════════════════════════
+loadDashboard();
+setInterval(loadDashboard, 15000);
+</script>
+</body>
+</html>
