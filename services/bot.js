@@ -45,11 +45,19 @@ const BOUNCE_RSI_SELL     = 55;    // RSI > 55 → overbought on 5m
 // Per-symbol lock — prevents concurrent ticks on the same pair
 const running = {};
 
-// ── Bot running state ─────────────────────────────────────────────────────────
-let _isRunning = false;
+// ── Bot running state (persisted to data/state.json) ─────────────────────────
+let _isRunning = (read('state') || {}).isRunning === true;
 const getBotRunning = () => _isRunning;
-const startBot     = () => { _isRunning = true;  logger.info('[bot] Started.'); };
-const stopBot      = () => { _isRunning = false; logger.info('[bot] Stopped.'); };
+const startBot = () => {
+  _isRunning = true;
+  write('state', { isRunning: true });
+  logger.info('[bot] Started.');
+};
+const stopBot = () => {
+  _isRunning = false;
+  write('state', { isRunning: false });
+  logger.info('[bot] Stopped.');
+};
 
 // ── Signal evaluators ─────────────────────────────────────────────────────────
 

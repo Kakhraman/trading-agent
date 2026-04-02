@@ -4,18 +4,26 @@ const path = require('path');
 const DATA_DIR = path.join(__dirname, '../data');
 
 const FILES = {
-  trades: path.join(DATA_DIR, 'trades.json'),
+  trades:  path.join(DATA_DIR, 'trades.json'),
   balance: path.join(DATA_DIR, 'balance.json'),
-  logs: path.join(DATA_DIR, 'logs.json'),
+  logs:    path.join(DATA_DIR, 'logs.json'),
+  state:   path.join(DATA_DIR, 'state.json'),
+};
+
+const FILE_DEFAULTS = {
+  trades:  '[]',
+  balance: '[]',
+  logs:    '[]',
+  state:   JSON.stringify({ isRunning: false }),
 };
 
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
-  for (const file of Object.values(FILES)) {
+  for (const [key, file] of Object.entries(FILES)) {
     if (!fs.existsSync(file)) {
-      fs.writeFileSync(file, JSON.stringify([]));
+      fs.writeFileSync(file, FILE_DEFAULTS[key]);
     }
   }
 }
