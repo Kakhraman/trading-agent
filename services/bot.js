@@ -1,7 +1,7 @@
 const { getKlines, getPrice, getBalance, placeMarketOrder } = require('./binance');
 const { computeIndicators, computeBounceIndicators, isNear } = require('./indicators');
 const { notifyBuy, notifySell, notifyError } = require('./telegram');
-const { append, updateTrade, getOpenTrade, read } = require('../utils/db');
+const { append, updateTrade, getOpenTrade, read, write } = require('../utils/db');
 const logger = require('../utils/logger');
 
 // ── Watchlist ─────────────────────────────────────────────────────────────────
