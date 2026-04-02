@@ -45,6 +45,12 @@ const BOUNCE_RSI_SELL     = 55;    // RSI > 55 → overbought on 5m
 // Per-symbol lock — prevents concurrent ticks on the same pair
 const running = {};
 
+// ── Bot running state ─────────────────────────────────────────────────────────
+let _isRunning = false;
+const getBotRunning = () => _isRunning;
+const startBot     = () => { _isRunning = true;  logger.info('[bot] Started.'); };
+const stopBot      = () => { _isRunning = false; logger.info('[bot] Stopped.'); };
+
 // ── Signal evaluators ─────────────────────────────────────────────────────────
 
 function evaluateTrendSignal({ currentPrice, ema50, ema200, rsi14 }) {
@@ -255,32 +261,55 @@ async function tick5m() {
 async function getStatus() {
   const trades = read('trades');
 
-  const openTrades  = trades.filter(t => t.status === 'OPEN');
-  const closedTrades = trades.filter(t => t.status === 'CLOSED' && typeof t.pnl === 'number');
-  const totalPnl    = closedTrades.reduce((s, t) => s + t.pnl, 0);
-  const winTrades   = closedTrades.filter(t => t.pnl > 0).length;
-  const winRate     = closedTrades.length > 0 ? (winTrades / closedTrades.length) * 100 : null;
+  const openTrades   = trades.filter(t => t.status === 'OPEN');
+  const closedTrades = trades.filter(t => t.status === 'CLOSED');
+  const realizedPnl  = closedTrades.reduce((s, t) => s + (typeof t.pnl === 'number' ? t.pnl : 0), 0);
+  const winRate      = closedTrades.length > 0
+    ? (closedTrades.filter(t => typeof t.pnl === 'number' && t.pnl > 0).length / closedTrades.length) * 100
+    : null;
 
   const { free: usdtBalance } = await getBalance('USDT').catch(() => ({ free: 0 }));
 
   const enrichedOpenTrades = await Promise.all(
     openTrades.map(async t => {
       try {
-        const price = await getPrice(t.symbol);
-        return { ...t, currentPrice: price, unrealizedPnl: (price - t.entryPrice) * t.quantity };
+        const price         = await getPrice(t.symbol);
+        const positionValue = price * t.quantity;
+        const unrealizedPnl = (price - t.entryPrice) * t.quantity;
+        return { ...t, currentPrice: price, positionValue, unrealizedPnl };
       } catch {
-        return { ...t, currentPrice: null, unrealizedPnl: null };
+        return { ...t, currentPrice: null, positionValue: null, unrealizedPnl: null };
       }
     })
   );
 
+  const cryptoValue    = enrichedOpenTrades.reduce((s, t) => s + (t.positionValue  ?? 0), 0);
+  const unrealizedPnl  = enrichedOpenTrades.reduce((s, t) => s + (t.unrealizedPnl  ?? 0), 0);
+  const totalBalance   = usdtBalance + cryptoValue;
+  const totalPnl       = realizedPnl + unrealizedPnl;
+
+  const cryptoAssets = enrichedOpenTrades.map(t => ({
+    tradeId:      t.id,
+    asset:        t.symbol.replace('USDT', ''),
+    symbol:       t.symbol,
+    quantity:     t.quantity,
+    currentPrice: t.currentPrice,
+    valueUsdt:    t.positionValue,
+  }));
+
   return {
-    watchlist: WATCHLIST,
+    isRunning:     _isRunning,
+    watchlist:     WATCHLIST,
+    totalBalance,
     usdtBalance,
-    openTrades: enrichedOpenTrades,
+    cryptoValue,
+    cryptoAssets,
+    openTrades:    enrichedOpenTrades,
+    realizedPnl,
+    unrealizedPnl,
     totalPnl,
-    totalTrades:  trades.length,
-    closedTrades: closedTrades.length,
+    totalTrades:   trades.length,
+    closedTrades:  closedTrades.length,
     winRate,
   };
 }
@@ -337,4 +366,28 @@ async function getWatchlistSnapshot() {
   return results;
 }
 
-module.exports = { tick, tick5m, getStatus, getWatchlistSnapshot, WATCHLIST };
+// ── Manual close by trade IDs ─────────────────────────────────────────────────
+
+async function closeTradesByIds(ids) {
+  const open = read('trades').filter(t => t.status === 'OPEN' && ids.includes(t.id));
+  for (const trade of open) {
+    if (running[trade.symbol]) {
+      logger.warn(`[${trade.symbol}] Skipping manual close — symbol locked.`);
+      continue;
+    }
+    try {
+      const price = await getPrice(trade.symbol);
+      await closeTrade(trade, price, 'MANUAL');
+    } catch (err) {
+      const msg = err.response?.data?.msg || err.message;
+      logger.error(`[${trade.symbol}] Manual close error: ${msg}`);
+    }
+  }
+}
+
+module.exports = {
+  tick, tick5m,
+  getStatus, getWatchlistSnapshot, WATCHLIST,
+  startBot, stopBot, getBotRunning,
+  closeTradesByIds,
+};

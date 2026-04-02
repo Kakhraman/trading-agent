@@ -29,6 +29,7 @@
     .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 1.1rem 1.4rem; }
     .card .label { font-size: .7rem; text-transform: uppercase; letter-spacing: .9px; color: #8b949e; margin-bottom: .4rem; }
     .card .value { font-size: 1.5rem; font-weight: 700; color: #f0f6fc; }
+    .card .card-sub { font-size: .7rem; color: #8b949e; margin-top: .3rem; }
     .green { color: #3fb950 !important; } .red { color: #f85149 !important; } .yellow { color: #d29922 !important; }
 
     /* ── Section headers ── */
@@ -94,6 +95,8 @@
     .btn:disabled { opacity: .5; cursor: not-allowed; }
     .btn.primary { background: #238636; border-color: #2ea043; color: #fff; }
     .btn.primary:hover:not(:disabled) { background: #2ea043; }
+    .btn.danger  { background: #b91c1c; border-color: #ef4444; color: #fff; }
+    .btn.danger:hover:not(:disabled)  { background: #ef4444; }
 
     /* ── Open trades cards ── */
     .open-trades-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
@@ -146,18 +149,43 @@
   <!-- ════════════════════════════ DASHBOARD ════════════════════════════ -->
   <div id="page-dashboard" class="page active">
     <div class="toolbar">
-      <button class="btn primary" id="btn-tick">&#9654; Run Bot Now</button>
+      <button class="btn primary" id="btn-bot-toggle">&#9654; Start Bot</button>
       <button class="btn" id="btn-refresh-dash">&#8635; Refresh</button>
       <span class="refresh-info" id="dash-refresh-time"></span>
     </div>
 
     <div class="cards">
-      <div class="card"><div class="label">USDT Balance</div><div class="value" id="stat-balance">—</div></div>
-      <div class="card"><div class="label">Total PnL</div><div class="value" id="stat-pnl">—</div></div>
-      <div class="card"><div class="label">Open Trades</div><div class="value" id="stat-open">—</div></div>
-      <div class="card"><div class="label">Total Trades</div><div class="value" id="stat-total">—</div></div>
-      <div class="card"><div class="label">Win Rate</div><div class="value" id="stat-winrate">—</div></div>
+      <div class="card">
+        <div class="label">Total Balance</div>
+        <div class="value" id="stat-total-balance">—</div>
+        <div class="card-sub" id="stat-total-balance-sub"></div>
+      </div>
+      <div class="card">
+        <div class="label">USDT Free</div>
+        <div class="value" id="stat-balance">—</div>
+      </div>
+      <div class="card">
+        <div class="label">Crypto Value</div>
+        <div class="value" id="stat-crypto-value">—</div>
+        <div class="card-sub">open positions</div>
+      </div>
+      <div class="card">
+        <div class="label">Total PnL</div>
+        <div class="value" id="stat-pnl">—</div>
+        <div class="card-sub" id="stat-pnl-sub"></div>
+      </div>
+      <div class="card">
+        <div class="label">Open Trades</div>
+        <div class="value" id="stat-open">—</div>
+      </div>
+      <div class="card">
+        <div class="label">Win Rate</div>
+        <div class="value" id="stat-winrate">—</div>
+        <div class="card-sub" id="stat-winrate-sub"></div>
+      </div>
     </div>
+
+    <div id="holdings-section"></div>
 
     <div class="section-header"><h2>Open Positions</h2></div>
     <div id="open-trades-grid" class="open-trades-grid">
@@ -317,23 +345,91 @@ async function loadDashboard() {
     document.getElementById('offline-banner').style.display = 'none';
     const data = json.data;
 
+    // Balance cards
+    document.getElementById('stat-total-balance').textContent = '$' + fmt(data.totalBalance);
+    document.getElementById('stat-total-balance-sub').textContent =
+      `USDT $${fmt(data.usdtBalance)} + Crypto $${fmt(data.cryptoValue)}`;
     document.getElementById('stat-balance').textContent = '$' + fmt(data.usdtBalance);
+    document.getElementById('stat-crypto-value').textContent = '$' + fmt(data.cryptoValue);
 
+    // PnL card
     const pnlEl = document.getElementById('stat-pnl');
-    const sign = data.totalPnl >= 0 ? '+' : '';
-    pnlEl.textContent = sign + fmt(data.totalPnl) + ' USDT';
+    const pnlSign = data.totalPnl >= 0 ? '+' : '';
+    pnlEl.textContent = pnlSign + fmt(data.totalPnl) + ' USDT';
     pnlEl.className = 'value ' + (data.totalPnl >= 0 ? 'green' : 'red');
+    const rSign = data.realizedPnl >= 0 ? '+' : '';
+    const uSign = data.unrealizedPnl >= 0 ? '+' : '';
+    document.getElementById('stat-pnl-sub').textContent =
+      `R: ${rSign}${fmt(data.realizedPnl)} / U: ${uSign}${fmt(data.unrealizedPnl)}`;
 
-    document.getElementById('stat-open').textContent  = data.openTrades.length;
-    document.getElementById('stat-total').textContent = data.totalTrades;
+    // Other cards
+    document.getElementById('stat-open').textContent = data.openTrades.length;
 
     const wrEl = document.getElementById('stat-winrate');
     if (data.winRate !== null) {
       wrEl.textContent = fmt(data.winRate, 1) + '%';
       wrEl.className = 'value ' + (data.winRate >= 50 ? 'green' : 'red');
+      document.getElementById('stat-winrate-sub').textContent =
+        `${data.closedTrades} closed trade${data.closedTrades !== 1 ? 's' : ''}`;
     } else {
       wrEl.textContent = '—';
       wrEl.className = 'value';
+      document.getElementById('stat-winrate-sub').textContent = 'no closed trades yet';
+    }
+
+    // Bot toggle button
+    const toggleBtn = document.getElementById('btn-bot-toggle');
+    if (data.isRunning) {
+      toggleBtn.textContent = '⏹ Stop Bot';
+      toggleBtn.className = 'btn danger';
+    } else {
+      toggleBtn.textContent = '▶ Start Bot';
+      toggleBtn.className = 'btn primary';
+    }
+
+    // Holdings section
+    const holdingsEl = document.getElementById('holdings-section');
+    if (!data.cryptoAssets?.length) {
+      holdingsEl.innerHTML = '';
+    } else {
+      holdingsEl.innerHTML = `
+        <div class="section-header" style="margin-top:1.25rem">
+          <h2>Holdings</h2>
+          <div style="display:flex;gap:.5rem">
+            <button class="btn" id="btn-sell-selected">Sell Selected</button>
+            <button class="btn danger" id="btn-sell-all">Sell All</button>
+          </div>
+        </div>
+        <div class="table-wrap" style="margin-bottom:1.75rem">
+          <table>
+            <thead><tr>
+              <th style="width:36px"><input type="checkbox" id="chk-select-all" title="Select all"></th>
+              <th>Asset</th><th>Quantity</th><th>Current Price</th><th>Value (USDT)</th>
+            </tr></thead>
+            <tbody>${data.cryptoAssets.map(a => `<tr>
+              <td><input type="checkbox" class="holding-chk" data-id="${a.tradeId || ''}" data-symbol="${a.symbol}"></td>
+              <td style="font-weight:600;color:#f0f6fc">${a.asset}</td>
+              <td>${fmt(a.quantity, 6)}</td>
+              <td>$${fmt(a.currentPrice)}</td>
+              <td style="font-weight:600">$${fmt(a.valueUsdt)}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>`;
+
+      document.getElementById('chk-select-all').addEventListener('change', e => {
+        document.querySelectorAll('.holding-chk').forEach(c => c.checked = e.target.checked);
+      });
+
+      document.getElementById('btn-sell-selected').addEventListener('click', async () => {
+        const ids = [...document.querySelectorAll('.holding-chk:checked')].map(c => c.dataset.id).filter(Boolean);
+        if (!ids.length) return alert('Select at least one position.');
+        await sellTrades(ids);
+      });
+
+      document.getElementById('btn-sell-all').addEventListener('click', async () => {
+        if (!confirm('Sell ALL open positions?')) return;
+        await sellAllTrades();
+      });
     }
 
     const grid = document.getElementById('open-trades-grid');
@@ -353,10 +449,10 @@ async function loadDashboard() {
             <div class="item"><div class="lbl">Entry Price</div><div class="val">$${fmt(t.entryPrice)}</div></div>
             <div class="item"><div class="lbl">Current Price</div><div class="val">$${fmt(t.currentPrice)}</div></div>
             <div class="item"><div class="lbl">Quantity</div><div class="val">${fmt(t.quantity, 6)}</div></div>
+            <div class="item"><div class="lbl">Position Value</div><div class="val">$${fmt(t.positionValue)}</div></div>
             <div class="item"><div class="lbl">Unrealized PnL</div><div class="val" style="${upnlColor}">${upnlText}</div></div>
             <div class="item"><div class="lbl">Stop Loss</div><div class="val red">$${fmt(t.stopLoss)}</div></div>
             <div class="item"><div class="lbl">Take Profit</div><div class="val green">$${fmt(t.takeProfit)}</div></div>
-            <div class="item"><div class="lbl">RSI at Entry</div><div class="val">${fmt(t.indicators?.rsi14, 1)}</div></div>
             <div class="item"><div class="lbl">Entry Time</div><div class="val" style="font-size:.8rem">${fmtDate(t.entryTime)}</div></div>
           </div>
         </div>`;
@@ -619,16 +715,36 @@ document.getElementById('filter-log-search').addEventListener('input', renderLog
 // ════════════════════════════════════════════════════════════════════════
 // Buttons
 // ════════════════════════════════════════════════════════════════════════
-document.getElementById('btn-tick').addEventListener('click', async () => {
-  const btn = document.getElementById('btn-tick');
-  btn.disabled = true; btn.textContent = 'Running…';
+// ── Bot toggle ────────────────────────────────────────────────────────────────
+document.getElementById('btn-bot-toggle').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-bot-toggle');
+  const isRunning = btn.classList.contains('danger');
+  btn.disabled = true;
   try {
-    await fetch('/api/bot/tick', { method: 'POST' });
-    btn.textContent = '✓ Triggered';
-    setTimeout(loadDashboard, 4000);
-  } catch { btn.textContent = '! Error'; }
-  setTimeout(() => { btn.textContent = '▶ Run Bot Now'; btn.disabled = false; }, 2500);
+    await fetch(isRunning ? '/api/bot/stop' : '/api/bot/start', { method: 'POST' });
+    await loadDashboard();
+  } catch { /* dashboard reload will show correct state */ }
+  btn.disabled = false;
 });
+
+// ── Sell helpers ─────────────────────────────────────────────────────────────
+async function sellTrades(ids) {
+  const res  = await fetch('/api/trades/close', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  });
+  const json = await res.json();
+  if (!json.ok) return alert('Error: ' + json.error);
+  setTimeout(loadDashboard, 2500);
+}
+
+async function sellAllTrades() {
+  const res  = await fetch('/api/trades/close-all', { method: 'POST' });
+  const json = await res.json();
+  if (!json.ok) return alert('Error: ' + json.error);
+  setTimeout(loadDashboard, 2500);
+}
 
 document.getElementById('btn-refresh-dash').addEventListener('click', loadDashboard);
 document.getElementById('btn-refresh-wl').addEventListener('click', loadWatchlist);

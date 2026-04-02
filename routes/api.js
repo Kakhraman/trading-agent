@@ -12,13 +12,16 @@ router.get('/watchlist',       dashboardCtrl.getWatchlist);
 router.get('/balance-history', dashboardCtrl.getBalanceHistory);
 
 // Trades
-router.get('/trades',      tradesCtrl.getTrades);
-router.get('/trades/open', tradesCtrl.getOpenTrades);
+router.get('/trades',       tradesCtrl.getTrades);
+router.get('/trades/open',  tradesCtrl.getOpenTrades);
 
 // Logs
 router.get('/logs', logsCtrl.getLogs);
 
 // Bot control
-router.post('/bot/tick', botCtrl.triggerTick);
+router.post('/bot/start',       botCtrl.triggerStart);
+router.post('/bot/stop',        botCtrl.triggerStop);
+router.post('/trades/close',    botCtrl.closeTrades);
+router.post('/trades/close-all', botCtrl.closeAllTrades);
 
 module.exports = router;
