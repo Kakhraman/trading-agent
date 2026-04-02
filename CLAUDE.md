@@ -35,9 +35,9 @@ No test suite is configured. No lint tooling is configured.
 
 ### Strategy parameters
 
-**15m Trend:** EMA50/EMA200/RSI14 · Buy: EMA50>EMA200, RSI<30, price within 0.5% of EMA50 · Sell: EMA50<EMA200, RSI>70, price within 0.5% · SL: −2%, TP: +3%, size: 5% of USDT balance
+**15m Trend:** EMA50/EMA200/RSI14 · Buy: EMA50>EMA200, RSI<45, price within 1.5% of EMA50 · Sell: EMA50<EMA200, RSI>55, price within 1.5% · SL: −0.5%, TP: +1%, size: 5% of USDT balance
 
-**5m Bounce:** EMA9/EMA21/RSI14 · Buy: EMA9>EMA21, RSI<35, price within 0.3% of EMA9 · Sell: EMA9<EMA21, RSI>65, price within 0.3% · SL: −1%, TP: +1.5%, size: 3% of USDT balance
+**5m Bounce:** EMA9/EMA21/RSI14 · Buy: RSI<45, price within 1.5% of EMA9 · Sell: RSI>55, price within 1.5% · SL: −0.5%, TP: +1%, size: 5% of USDT balance
 
 ### Data persistence
 

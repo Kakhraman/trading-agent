@@ -29,14 +29,14 @@ const WATCHLIST = [
 ];
 
 // ── 15m trend strategy config ─────────────────────────────────────────────────
-const TREND_SL_PCT       = 0.01;  // 1 %
-const TREND_TP_PCT       = 0.005; // 0.5 %
+const TREND_SL_PCT       = 0.005; // 0.5 %
+const TREND_TP_PCT       = 0.01;  // 1 %
 const TREND_CAPITAL_PCT  = 0.05;  // 5 %
 const TREND_EMA_TOL      = 1.5;   // price within 1.5 % of EMA50
 
 // ── 5m bounce strategy config ─────────────────────────────────────────────────
 const BOUNCE_SL_PCT       = 0.005; // 0.5 %
-const BOUNCE_TP_PCT       = 0.005; // 0.5 %
+const BOUNCE_TP_PCT       = 0.01;  // 1 %
 const BOUNCE_CAPITAL_PCT  = 0.05;  // 5 %
 const BOUNCE_EMA_TOL      = 1.5;   // price within 1.5 % of EMA9
 const BOUNCE_RSI_BUY      = 45;    // RSI < 45 → oversold on 5m
@@ -188,8 +188,12 @@ async function tickSymbol(symbol) {
     }
   } catch (err) {
     const msg = err.response?.data?.msg || err.message;
-    logger.error(`[${symbol}][15m] Tick error: ${msg}`);
-    await notifyError(`bot.trend.${symbol}`, msg);
+    if (msg.startsWith('Need at least')) {
+      logger.warn(`[${symbol}][15m] Skipping — ${msg}`);
+    } else {
+      logger.error(`[${symbol}][15m] Tick error: ${msg}`);
+      await notifyError(`bot.trend.${symbol}`, msg);
+    }
   } finally {
     running[symbol] = false;
   }
@@ -229,8 +233,12 @@ async function tick5mSymbol(symbol) {
     }
   } catch (err) {
     const msg = err.response?.data?.msg || err.message;
-    logger.error(`[${symbol}][5m] Bounce tick error: ${msg}`);
-    await notifyError(`bot.bounce.${symbol}`, msg);
+    if (msg.startsWith('Need at least')) {
+      logger.warn(`[${symbol}][5m] Skipping — ${msg}`);
+    } else {
+      logger.error(`[${symbol}][5m] Bounce tick error: ${msg}`);
+      await notifyError(`bot.bounce.${symbol}`, msg);
+    }
   } finally {
     running[symbol] = false;
   }
