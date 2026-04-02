@@ -1,8 +1,9 @@
 const axios = require('axios');
 const crypto = require('node:crypto');
 
-const BASE_URL = 'https://testnet.binance.vision/api';
-const API_KEY = process.env.BINANCE_API_KEY;
+const BASE_URL        = 'https://testnet.binance.vision/api'; // orders & account
+const MARKET_BASE_URL = 'https://api.binance.com/api';        // klines & price (real data, no auth)
+const API_KEY    = process.env.BINANCE_API_KEY;
 const API_SECRET = process.env.BINANCE_API_SECRET;
 
 function sign(queryString) {
@@ -18,8 +19,9 @@ function buildQuery(params) {
     .join('&');
 }
 
-const publicClient = axios.create({
-  baseURL: BASE_URL,
+// Public market data — uses real Binance for full historical kline depth
+const marketClient = axios.create({
+  baseURL: MARKET_BASE_URL,
   timeout: 10000,
 });
 
@@ -33,7 +35,7 @@ async function getExchangeInfo() {
   if (_exchangeInfoCache && Date.now() - _exchangeInfoCacheAt < EXCHANGE_INFO_TTL) {
     return _exchangeInfoCache;
   }
-  const { data } = await publicClient.get('/v3/exchangeInfo');
+  const { data } = await marketClient.get('/v3/exchangeInfo');
   _exchangeInfoCache = data;
   _exchangeInfoCacheAt = Date.now();
   return data;
@@ -67,8 +69,8 @@ const privateClient = axios.create({
  * @param {string} interval e.g. '15m'
  * @param {number} limit   number of candles (max 1000)
  */
-async function getKlines(symbol, interval = '15m', limit = 250) {
-  const { data } = await publicClient.get('/v3/klines', {
+async function getKlines(symbol, interval = '15m', limit = 1000) {
+  const { data } = await marketClient.get('/v3/klines', {
     params: { symbol, interval, limit },
   });
   // Each element: [openTime, open, high, low, close, volume, ...]
@@ -84,7 +86,7 @@ async function getKlines(symbol, interval = '15m', limit = 250) {
 }
 
 async function getPrice(symbol) {
-  const { data } = await publicClient.get('/v3/ticker/price', {
+  const { data } = await marketClient.get('/v3/ticker/price', {
     params: { symbol },
   });
   return parseFloat(data.price);
