@@ -163,7 +163,7 @@ async function tickSymbol(symbol) {
   }
   running[symbol] = true;
   try {
-    const klines    = await getKlines(symbol, '15m', 250);
+    const klines    = await getKlines(symbol, '15m', 1000);
     const ind       = computeIndicators(klines);
     const { currentPrice, ema50, ema200, rsi14 } = ind;
 
@@ -335,7 +335,7 @@ async function getWatchlistSnapshot() {
     try {
       // Fetch both timeframes in parallel per symbol
       const [klines15m, klines5m] = await Promise.all([
-        getKlines(symbol, '15m', 250),
+        getKlines(symbol, '15m', 1000),
         getKlines(symbol, '5m', 100),
       ]);
       const ind15m    = computeIndicators(klines15m);
