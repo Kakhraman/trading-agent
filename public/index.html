@@ -555,11 +555,15 @@ function renderWatchlist(data) {
 }
 
 let wlData = [];
+let _wlLoading = false;
 async function loadWatchlist() {
+  if (_wlLoading) return;
+  _wlLoading = true;
   const tbody = document.getElementById('wl-tbody');
-  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#8b949e">Fetching indicators… (may take ~5 s)</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#8b949e">Fetching indicators…</td></tr>';
   try {
     const res  = await fetch('/api/watchlist');
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
     const json = await res.json();
     if (!json.ok) throw new Error(json.error || 'Server error');
     wlData = json.data;
@@ -570,6 +574,8 @@ async function loadWatchlist() {
   } catch (err) {
     console.error('Watchlist error:', err);
     tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;color:#f85149">Failed to load watchlist: ${err.message}</td></tr>`;
+  } finally {
+    _wlLoading = false;
   }
 }
 

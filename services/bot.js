@@ -343,54 +343,65 @@ async function getStatus() {
 
 // ── Watchlist snapshot (with both 15m + 5m indicators, cached 30 s) ───────────
 
-let _wlCache = null, _wlCacheAt = 0;
+let _wlCache = null, _wlCacheAt = 0, _wlFetching = false;
 const WL_CACHE_TTL = 30_000;
+const WL_BATCH_SIZE = 5;
+
+async function _fetchSymbol(symbol) {
+  try {
+    const [klines15m, klines5m] = await Promise.all([
+      getKlines(symbol, '15m', 1000),
+      getKlines(symbol, '5m', 100),
+    ]);
+    const ind15m    = computeIndicators(klines15m);
+    const ind5m     = computeBounceIndicators(klines5m);
+    const signal15m = evaluateTrendSignal(ind15m);
+    const signal5m  = evaluateBounceSignal(ind5m);
+    const open      = getOpenTrade(symbol);
+    return {
+      symbol,
+      price:     ind15m.currentPrice,
+      ema50:     ind15m.ema50,
+      ema200:    ind15m.ema200,
+      rsi15m:    ind15m.rsi14,
+      signal15m,
+      ema9:      ind5m.ema9,
+      ema21:     ind5m.ema21,
+      rsi5m:     ind5m.rsi14,
+      signal5m,
+      hasOpenTrade: !!open,
+      openTradeId:  open?.id || null,
+      openStrategy: open?.strategy || null,
+    };
+  } catch (err) {
+    const msg = err.response?.data?.msg || err.message;
+    logger.warn(`[watchlist] ${symbol} skipped: ${msg}`);
+    return { symbol, error: msg };
+  }
+}
 
 async function getWatchlistSnapshot() {
   if (_wlCache && Date.now() - _wlCacheAt < WL_CACHE_TTL) return _wlCache;
+  // Return stale cache if a fetch is already in progress
+  if (_wlFetching) return _wlCache || [];
 
-  const results = [];
-  for (const symbol of _watchlist) {
-    try {
-      // Fetch both timeframes in parallel per symbol
-      const [klines15m, klines5m] = await Promise.all([
-        getKlines(symbol, '15m', 1000),
-        getKlines(symbol, '5m', 100),
-      ]);
-      const ind15m    = computeIndicators(klines15m);
-      const ind5m     = computeBounceIndicators(klines5m);
-      const signal15m = evaluateTrendSignal(ind15m);
-      const signal5m  = evaluateBounceSignal(ind5m);
-      const open      = getOpenTrade(symbol);
-      results.push({
-        symbol,
-        // 15m
-        price:     ind15m.currentPrice,
-        ema50:     ind15m.ema50,
-        ema200:    ind15m.ema200,
-        rsi15m:    ind15m.rsi14,
-        signal15m,
-        // 5m
-        ema9:      ind5m.ema9,
-        ema21:     ind5m.ema21,
-        rsi5m:     ind5m.rsi14,
-        signal5m,
-        // position
-        hasOpenTrade: !!open,
-        openTradeId:  open?.id || null,
-        openStrategy: open?.strategy || null,
-      });
-    } catch (err) {
-      const msg = err.response?.data?.msg || err.message;
-      logger.warn(`[watchlist] ${symbol} skipped: ${msg}`);
-      results.push({ symbol, error: msg });
+  _wlFetching = true;
+  try {
+    const results = [];
+    for (let i = 0; i < _watchlist.length; i += WL_BATCH_SIZE) {
+      const batch = _watchlist.slice(i, i + WL_BATCH_SIZE);
+      const batchResults = await Promise.all(batch.map(_fetchSymbol));
+      results.push(...batchResults);
+      if (i + WL_BATCH_SIZE < _watchlist.length) {
+        await new Promise(r => setTimeout(r, 200));
+      }
     }
-    await new Promise(r => setTimeout(r, 400));
+    _wlCache   = results;
+    _wlCacheAt = Date.now();
+    return results;
+  } finally {
+    _wlFetching = false;
   }
-
-  _wlCache   = results;
-  _wlCacheAt = Date.now();
-  return results;
 }
 
 // ── Manual close by trade IDs ─────────────────────────────────────────────────
