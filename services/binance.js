@@ -1,8 +1,8 @@
 const axios = require('axios');
 const crypto = require('node:crypto');
 
-const BASE_URL        = 'https://testnet.binance.vision/api'; // orders & account
-const MARKET_BASE_URL = 'https://api.binance.com/api';        // klines & price (real data, no auth)
+const BASE_URL        = 'https://demo-api.binance.com/api'; // orders & account (Spot Demo)
+const MARKET_BASE_URL = 'https://api.binance.com/api';      // klines & price (real data, no auth)
 const API_KEY    = process.env.BINANCE_API_KEY;
 const API_SECRET = process.env.BINANCE_API_SECRET;
 

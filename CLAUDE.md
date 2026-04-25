@@ -29,7 +29,7 @@ No test suite is configured. No lint tooling is configured.
 ### Services
 
 - **`services/bot.js`** — Core trading logic. Contains `tick()` (15m trend strategy) and `tick5m()` (5m bounce strategy). Uses per-symbol locks to prevent concurrent execution on the same pair. Watchlist is hardcoded (19 USDT pairs).
-- **`services/binance.js`** — Binance Testnet REST client. All private calls are HMAC-SHA256 signed. Base URL: `https://testnet.binance.vision/api`.
+- **`services/binance.js`** — Binance Spot Demo REST client. All private calls are HMAC-SHA256 signed. Base URL: `https://demo-api.binance.com/api`.
 - **`services/indicators.js`** — EMA and RSI calculations. `computeIndicators()` returns EMA50/EMA200/RSI14 for the 15m strategy; `computeBounceIndicators()` returns EMA9/EMA21/RSI14 for the 5m strategy.
 - **`services/telegram.js`** — Sends HTML-formatted trade notifications and error alerts.
 
@@ -67,4 +67,4 @@ TELEGRAM_CHAT_ID=      # Telegram chat ID (optional)
 PORT=3000
 ```
 
-Testnet credentials only — the base URL is hardcoded to `testnet.binance.vision`, not production Binance.
+Spot Demo credentials only — the base URL is hardcoded to `demo-api.binance.com`, not production Binance.
