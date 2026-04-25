@@ -16,7 +16,8 @@
       "Bash(git commit:*)",
       "Bash(gh repo:*)",
       "mcp__Claude_Preview__preview_start",
-      "WebFetch(domain:developers.binance.com)"
+      "WebFetch(domain:developers.binance.com)",
+      "Bash(git push *)"
     ]
   }
 }
