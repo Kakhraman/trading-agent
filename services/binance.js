@@ -153,4 +153,4 @@ async function getOpenOrders(symbol) {
   return data;
 }
 
-module.exports = { getKlines, getPrice, getAccountInfo, getBalance, placeMarketOrder, getOpenOrders };
+module.exports = { getKlines, getPrice, getExchangeInfo, getAccountInfo, getBalance, placeMarketOrder, getOpenOrders };

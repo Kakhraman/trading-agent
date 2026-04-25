@@ -141,6 +141,7 @@
     <a href="#" data-page="watchlist">Watchlist</a>
     <a href="#" data-page="trades">Trades</a>
     <a href="#" data-page="logs">Logs</a>
+    <a href="#" data-page="settings">Settings</a>
   </nav>
 </header>
 
@@ -150,9 +151,6 @@
   <div id="page-dashboard" class="page active">
     <div class="toolbar">
       <button class="btn primary" id="btn-bot-toggle">&#9654; Start Bot</button>
-      <span style="width:1px;height:20px;background:#30363d;display:inline-block;margin:0 .25rem"></span>
-      <button class="btn" id="btn-15m-toggle">15m Trend: —</button>
-      <button class="btn" id="btn-5m-toggle">5m Bounce: —</button>
       <button class="btn" id="btn-refresh-dash">&#8635; Refresh</button>
       <span class="refresh-info" id="dash-refresh-time"></span>
     </div>
@@ -311,6 +309,48 @@
     </div>
   </div>
 
+
+  <!-- ════════════════════════════ SETTINGS ════════════════════════════ -->
+  <div id="page-settings" class="page">
+
+    <div class="section-header" style="margin-bottom:1.25rem"><h2>Strategy</h2></div>
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:2rem">
+      <div class="card" style="min-width:230px;max-width:300px">
+        <div class="label">15m Trend</div>
+        <div style="margin-top:.75rem">
+          <button class="btn" id="settings-15m-toggle" style="min-width:110px">—</button>
+        </div>
+        <div class="card-sub" style="margin-top:.6rem">EMA50 / EMA200 / RSI14 &middot; :00/:15/:30/:45</div>
+      </div>
+      <div class="card" style="min-width:230px;max-width:300px">
+        <div class="label">5m Bounce</div>
+        <div style="margin-top:.75rem">
+          <button class="btn" id="settings-5m-toggle" style="min-width:110px">—</button>
+        </div>
+        <div class="card-sub" style="margin-top:.6rem">EMA9 / EMA21 / RSI14 &middot; every 5 minutes</div>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <h2>Watchlist</h2>
+      <span id="settings-wl-count" style="font-size:.78rem;color:#8b949e"></span>
+    </div>
+    <div style="display:flex;gap:.6rem;align-items:center;margin:1rem 0;flex-wrap:wrap">
+      <input id="settings-add-input" type="text" placeholder="Symbol (e.g. BTCUSDT)"
+        style="background:#161b22;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;
+               padding:.4rem .75rem;font-size:.82rem;outline:none;width:200px;text-transform:uppercase">
+      <button class="btn primary" id="settings-add-btn">+ Add</button>
+      <span id="settings-add-msg" style="font-size:.82rem"></span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th style="width:44px">#</th><th>Symbol</th><th style="width:110px">Action</th></tr></thead>
+        <tbody id="settings-wl-tbody"></tbody>
+      </table>
+    </div>
+
+  </div>
+
 </main>
 
 <script>
@@ -334,26 +374,13 @@ document.querySelectorAll('nav a').forEach(link => {
     if (link.dataset.page === 'watchlist') loadWatchlist();
     if (link.dataset.page === 'trades')    loadTrades();
     if (link.dataset.page === 'logs')      loadLogs();
+    if (link.dataset.page === 'settings')  loadSettings();
   });
 });
 
 // ════════════════════════════════════════════════════════════════════════
 // Dashboard
 // ════════════════════════════════════════════════════════════════════════
-let _tick15mEnabled = true;
-let _tick5mEnabled  = true;
-
-function renderStrategyBtns() {
-  const b15 = document.getElementById('btn-15m-toggle');
-  const b5  = document.getElementById('btn-5m-toggle');
-  b15.textContent    = '15m Trend: ' + (_tick15mEnabled ? 'ON' : 'OFF');
-  b15.style.borderColor = _tick15mEnabled ? '#2ea043' : '#30363d';
-  b15.style.color       = _tick15mEnabled ? '#3fb950' : '#8b949e';
-  b5.textContent     = '5m Bounce: ' + (_tick5mEnabled ? 'ON' : 'OFF');
-  b5.style.borderColor  = _tick5mEnabled  ? '#d29922' : '#30363d';
-  b5.style.color        = _tick5mEnabled  ? '#d29922' : '#8b949e';
-}
-
 async function loadDashboard() {
   try {
     const res  = await fetch('/api/dashboard');
@@ -403,11 +430,6 @@ async function loadDashboard() {
       toggleBtn.textContent = '▶ Start Bot';
       toggleBtn.className = 'btn primary';
     }
-
-    // Strategy toggles
-    _tick15mEnabled = data.tick15mEnabled !== false;
-    _tick5mEnabled  = data.tick5mEnabled  !== false;
-    renderStrategyBtns();
 
     // Holdings section
     const holdingsEl = document.getElementById('holdings-section');
@@ -566,17 +588,17 @@ document.querySelectorAll('#wl-table thead th.sortable').forEach(th => {
 let allTrades = [];
 let tradeSort = { col: 'entryTime', dir: -1 };
 
-const WATCHLIST = ['BTCUSDT','ETHUSDT','BNBUSDT','XRPUSDT','SOLUSDT','TRXUSDT','DOGEUSDT','BCHUSDT','ADAUSDT','LINKUSDT','TONUSDT','SUIUSDT','AVAXUSDT','LTCUSDT','ASTERUSDT','AAVEUSDT','FILUSDT','ZROUSDT'];
-
-function populateSymbolFilter() {
+function populateSymbolFilter(watchlist) {
   const sel = document.getElementById('filter-symbol');
-  WATCHLIST.forEach(s => {
+  const current = sel.value;
+  while (sel.options.length > 1) sel.remove(1);
+  (watchlist || []).forEach(s => {
     const opt = document.createElement('option');
     opt.value = s; opt.textContent = s;
     sel.appendChild(opt);
   });
+  if (current) sel.value = current;
 }
-populateSymbolFilter();
 
 function getTradeFilters() {
   return {
@@ -749,25 +771,6 @@ document.getElementById('btn-bot-toggle').addEventListener('click', async () => 
   btn.disabled = false;
 });
 
-// ── Strategy toggles ─────────────────────────────────────────────────────────
-document.getElementById('btn-15m-toggle').addEventListener('click', async () => {
-  await fetch('/api/bot/strategy', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ strategy: '15m', enabled: !_tick15mEnabled }),
-  });
-  await loadDashboard();
-});
-
-document.getElementById('btn-5m-toggle').addEventListener('click', async () => {
-  await fetch('/api/bot/strategy', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ strategy: '5m', enabled: !_tick5mEnabled }),
-  });
-  await loadDashboard();
-});
-
 // ── Sell helpers ─────────────────────────────────────────────────────────────
 async function sellTrades(ids) {
   const res  = await fetch('/api/trades/close', {
@@ -793,9 +796,111 @@ document.getElementById('btn-refresh-trades').addEventListener('click', loadTrad
 document.getElementById('btn-refresh-logs').addEventListener('click', loadLogs);
 
 // ════════════════════════════════════════════════════════════════════════
+// Settings
+// ════════════════════════════════════════════════════════════════════════
+let _settingsCache = { watchlist: [], tick15mEnabled: true, tick5mEnabled: true };
+
+function renderSettingsStrategies() {
+  const b15 = document.getElementById('settings-15m-toggle');
+  const b5  = document.getElementById('settings-5m-toggle');
+  if (!b15 || !b5) return;
+  const e15 = _settingsCache.tick15mEnabled;
+  const e5  = _settingsCache.tick5mEnabled;
+  b15.textContent = e15 ? '● Enabled' : '○ Disabled';
+  b15.style.borderColor = e15 ? '#2ea043' : '#30363d';
+  b15.style.color       = e15 ? '#3fb950' : '#8b949e';
+  b5.textContent  = e5  ? '● Enabled' : '○ Disabled';
+  b5.style.borderColor  = e5  ? '#2ea043' : '#30363d';
+  b5.style.color        = e5  ? '#3fb950' : '#8b949e';
+}
+
+function renderSettingsWatchlist() {
+  const tbody   = document.getElementById('settings-wl-tbody');
+  const countEl = document.getElementById('settings-wl-count');
+  const wl      = _settingsCache.watchlist;
+  if (countEl) countEl.textContent = `${wl.length} symbol${wl.length !== 1 ? 's' : ''}`;
+  if (!tbody) return;
+  if (!wl.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="3">No symbols in watchlist.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = wl.map((sym, i) => `<tr>
+    <td style="color:#8b949e;font-size:.78rem">${i + 1}</td>
+    <td style="font-weight:600;color:#f0f6fc">${sym}</td>
+    <td><button class="btn" style="padding:.22rem .55rem;font-size:.75rem;border-color:#b91c1c;color:#f85149"
+        onclick="removeWatchlistSymbol('${sym}')">&#10005; Remove</button></td>
+  </tr>`).join('');
+}
+
+async function loadSettings() {
+  try {
+    const res  = await fetch('/api/settings');
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error);
+    _settingsCache = json.data;
+    renderSettingsStrategies();
+    renderSettingsWatchlist();
+    populateSymbolFilter(_settingsCache.watchlist);
+  } catch (err) { console.error('Settings error:', err); }
+}
+
+async function removeWatchlistSymbol(symbol) {
+  if (!confirm(`Remove ${symbol} from watchlist?`)) return;
+  const res  = await fetch(`/api/settings/watchlist/${symbol}`, { method: 'DELETE' });
+  const json = await res.json();
+  if (!json.ok) return alert('Error: ' + json.error);
+  _settingsCache.watchlist = json.watchlist;
+  renderSettingsWatchlist();
+  populateSymbolFilter(_settingsCache.watchlist);
+}
+
+document.getElementById('settings-15m-toggle').addEventListener('click', async () => {
+  const enabled = !_settingsCache.tick15mEnabled;
+  const res  = await fetch('/api/settings/strategy', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ strategy: '15m', enabled }),
+  });
+  if ((await res.json()).ok) { _settingsCache.tick15mEnabled = enabled; renderSettingsStrategies(); }
+});
+
+document.getElementById('settings-5m-toggle').addEventListener('click', async () => {
+  const enabled = !_settingsCache.tick5mEnabled;
+  const res  = await fetch('/api/settings/strategy', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ strategy: '5m', enabled }),
+  });
+  if ((await res.json()).ok) { _settingsCache.tick5mEnabled = enabled; renderSettingsStrategies(); }
+});
+
+document.getElementById('settings-add-btn').addEventListener('click', async () => {
+  const input  = document.getElementById('settings-add-input');
+  const msgEl  = document.getElementById('settings-add-msg');
+  const symbol = input.value.toUpperCase().trim();
+  if (!symbol) return;
+  msgEl.textContent = 'Validating on Binance…'; msgEl.style.color = '#8b949e';
+  const res  = await fetch('/api/settings/watchlist', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ symbol }),
+  });
+  const json = await res.json();
+  if (!json.ok) { msgEl.textContent = json.error; msgEl.style.color = '#f85149'; return; }
+  input.value = '';
+  msgEl.textContent = `${symbol} added.`; msgEl.style.color = '#3fb950';
+  _settingsCache.watchlist = json.watchlist;
+  renderSettingsWatchlist();
+  populateSymbolFilter(_settingsCache.watchlist);
+  setTimeout(() => { msgEl.textContent = ''; }, 3000);
+});
+
+document.getElementById('settings-add-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('settings-add-btn').click();
+});
+
+// ════════════════════════════════════════════════════════════════════════
 // Init + auto-refresh
 // ════════════════════════════════════════════════════════════════════════
 loadDashboard();
+loadSettings();
 setInterval(loadDashboard, 15000);
 </script>
 </body>

@@ -4,29 +4,35 @@ const { notifyBuy, notifySell, notifyError } = require('./telegram');
 const { append, updateTrade, getOpenTrade, read, write } = require('../utils/db');
 const logger = require('../utils/logger');
 
-// ── Watchlist ─────────────────────────────────────────────────────────────────
-const WATCHLIST = [
-  'BTCUSDT',
-  'ETHUSDT',
-  'BNBUSDT',
-  'XRPUSDT',
-  'SOLUSDT',
-  'TRXUSDT',
-  'DOGEUSDT',
-  'BCHUSDT',
-  'ADAUSDT',
-  'LINKUSDT',
-  // 'MONADUSDT' — not listed on Binance Testnet
-  // 'HYPEUSDT'  — not listed on Binance Testnet
-  'TONUSDT',
-  'SUIUSDT',
-  'AVAXUSDT',
-  'LTCUSDT',
-  'ASTERUSDT',
-  'AAVEUSDT',
-  'FILUSDT',
-  'ZROUSDT',
-];
+// ── Settings (data/settings.json) ─────────────────────────────────────────────
+const _s           = read('settings') || {};
+let _watchlist     = Array.isArray(_s.watchlist) && _s.watchlist.length ? [..._s.watchlist]
+  : ['BTCUSDT','ETHUSDT','BNBUSDT','XRPUSDT','SOLUSDT','TRXUSDT','DOGEUSDT',
+     'BCHUSDT','ADAUSDT','LINKUSDT','TONUSDT','SUIUSDT','AVAXUSDT','LTCUSDT',
+     'ASTERUSDT','AAVEUSDT','FILUSDT','ZROUSDT'];
+let _tick15mEnabled = _s.tick15mEnabled !== false;
+let _tick5mEnabled  = _s.tick5mEnabled  !== false;
+
+function _saveSettings() {
+  write('settings', { watchlist: _watchlist, tick15mEnabled: _tick15mEnabled, tick5mEnabled: _tick5mEnabled });
+}
+
+const getWatchlist = () => [..._watchlist];
+
+function addToWatchlist(symbol) {
+  if (_watchlist.includes(symbol)) return { ok: false, error: `${symbol} already in watchlist` };
+  _watchlist.push(symbol);
+  _saveSettings();
+  return { ok: true };
+}
+
+function removeFromWatchlist(symbol) {
+  const idx = _watchlist.indexOf(symbol);
+  if (idx === -1) return { ok: false, error: `${symbol} not in watchlist` };
+  _watchlist.splice(idx, 1);
+  _saveSettings();
+  return { ok: true };
+}
 
 // ── 15m trend strategy config ─────────────────────────────────────────────────
 const TREND_SL_PCT       = 0.005; // 0.5 %
@@ -45,15 +51,10 @@ const BOUNCE_RSI_SELL     = 55;    // RSI > 55 → overbought on 5m
 // Per-symbol lock — prevents concurrent ticks on the same pair
 const running = {};
 
-// ── Bot state (persisted to data/state.json) ──────────────────────────────────
-const _saved         = read('state') || {};
-let _isRunning       = _saved.isRunning       === true;
-let _tick15mEnabled  = _saved.tick15mEnabled  !== false; // default true
-let _tick5mEnabled   = _saved.tick5mEnabled   !== false; // default true
+// ── Bot running state (data/state.json) ───────────────────────────────────────
+let _isRunning = (read('state') || {}).isRunning === true;
 
-function _saveState() {
-  write('state', { isRunning: _isRunning, tick15mEnabled: _tick15mEnabled, tick5mEnabled: _tick5mEnabled });
-}
+function _saveState() { write('state', { isRunning: _isRunning }); }
 
 const getBotRunning     = () => _isRunning;
 const getTick15mEnabled = () => _tick15mEnabled;
@@ -62,8 +63,8 @@ const getTick5mEnabled  = () => _tick5mEnabled;
 const startBot = () => { _isRunning = true;  _saveState(); logger.info('[bot] Started.'); };
 const stopBot  = () => { _isRunning = false; _saveState(); logger.info('[bot] Stopped.'); };
 
-const setTick15mEnabled = (v) => { _tick15mEnabled = v; _saveState(); logger.info(`[bot] 15m tick ${v ? 'enabled' : 'disabled'}.`); };
-const setTick5mEnabled  = (v) => { _tick5mEnabled  = v; _saveState(); logger.info(`[bot] 5m tick ${v ? 'enabled' : 'disabled'}.`); };
+const setTick15mEnabled = (v) => { _tick15mEnabled = v; _saveSettings(); logger.info(`[bot] 15m tick ${v ? 'enabled' : 'disabled'}.`); };
+const setTick5mEnabled  = (v) => { _tick5mEnabled  = v; _saveSettings(); logger.info(`[bot] 5m tick ${v ? 'enabled' : 'disabled'}.`); };
 
 // ── Signal evaluators ─────────────────────────────────────────────────────────
 
@@ -262,8 +263,8 @@ async function tick5mSymbol(symbol) {
 
 async function tick() {
   if (!_tick15mEnabled) { logger.info('[15m] Tick skipped — strategy disabled.'); return; }
-  logger.info(`[15m] Tick started — ${WATCHLIST.length} symbols.`);
-  for (const symbol of WATCHLIST) {
+  logger.info(`[15m] Tick started — ${_watchlist.length} symbols.`);
+  for (const symbol of _watchlist) {
     await tickSymbol(symbol);
     await new Promise(r => setTimeout(r, 300));
   }
@@ -272,8 +273,8 @@ async function tick() {
 
 async function tick5m() {
   if (!_tick5mEnabled) { logger.info('[5m] Tick skipped — strategy disabled.'); return; }
-  logger.info(`[5m] Bounce tick started — ${WATCHLIST.length} symbols.`);
-  for (const symbol of WATCHLIST) {
+  logger.info(`[5m] Bounce tick started — ${_watchlist.length} symbols.`);
+  for (const symbol of _watchlist) {
     await tick5mSymbol(symbol);
     await new Promise(r => setTimeout(r, 300));
   }
@@ -325,7 +326,7 @@ async function getStatus() {
     isRunning:       _isRunning,
     tick15mEnabled:  _tick15mEnabled,
     tick5mEnabled:   _tick5mEnabled,
-    watchlist:       WATCHLIST,
+    watchlist:       _watchlist,
     totalBalance,
     usdtBalance,
     cryptoValue,
@@ -349,7 +350,7 @@ async function getWatchlistSnapshot() {
   if (_wlCache && Date.now() - _wlCacheAt < WL_CACHE_TTL) return _wlCache;
 
   const results = [];
-  for (const symbol of WATCHLIST) {
+  for (const symbol of _watchlist) {
     try {
       // Fetch both timeframes in parallel per symbol
       const [klines15m, klines5m] = await Promise.all([
@@ -413,8 +414,9 @@ async function closeTradesByIds(ids) {
 
 module.exports = {
   tick, tick5m,
-  getStatus, getWatchlistSnapshot, WATCHLIST,
+  getStatus, getWatchlistSnapshot,
   startBot, stopBot, getBotRunning,
   getTick15mEnabled, getTick5mEnabled, setTick15mEnabled, setTick5mEnabled,
+  getWatchlist, addToWatchlist, removeFromWatchlist,
   closeTradesByIds,
 };

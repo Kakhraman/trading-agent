@@ -3,18 +3,26 @@ const path = require('path');
 
 const DATA_DIR = path.join(__dirname, '../data');
 
+const DEFAULT_WATCHLIST = [
+  'BTCUSDT','ETHUSDT','BNBUSDT','XRPUSDT','SOLUSDT','TRXUSDT','DOGEUSDT',
+  'BCHUSDT','ADAUSDT','LINKUSDT','TONUSDT','SUIUSDT','AVAXUSDT','LTCUSDT',
+  'ASTERUSDT','AAVEUSDT','FILUSDT','ZROUSDT',
+];
+
 const FILES = {
-  trades:  path.join(DATA_DIR, 'trades.json'),
-  balance: path.join(DATA_DIR, 'balance.json'),
-  logs:    path.join(DATA_DIR, 'logs.json'),
-  state:   path.join(DATA_DIR, 'state.json'),
+  trades:   path.join(DATA_DIR, 'trades.json'),
+  balance:  path.join(DATA_DIR, 'balance.json'),
+  logs:     path.join(DATA_DIR, 'logs.json'),
+  state:    path.join(DATA_DIR, 'state.json'),
+  settings: path.join(DATA_DIR, 'settings.json'),
 };
 
 const FILE_DEFAULTS = {
-  trades:  '[]',
-  balance: '[]',
-  logs:    '[]',
-  state:   JSON.stringify({ isRunning: false, tick15mEnabled: true, tick5mEnabled: true }),
+  trades:   '[]',
+  balance:  '[]',
+  logs:     '[]',
+  state:    JSON.stringify({ isRunning: false }),
+  settings: JSON.stringify({ watchlist: DEFAULT_WATCHLIST, tick15mEnabled: true, tick5mEnabled: true }),
 };
 
 function ensureDataDir() {
