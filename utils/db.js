@@ -14,7 +14,7 @@ const FILE_DEFAULTS = {
   trades:  '[]',
   balance: '[]',
   logs:    '[]',
-  state:   JSON.stringify({ isRunning: false }),
+  state:   JSON.stringify({ isRunning: false, tick15mEnabled: true, tick5mEnabled: true }),
 };
 
 function ensureDataDir() {

@@ -21,6 +21,7 @@ router.get('/logs', logsCtrl.getLogs);
 // Bot control
 router.post('/bot/start',       botCtrl.triggerStart);
 router.post('/bot/stop',        botCtrl.triggerStop);
+router.post('/bot/strategy',    botCtrl.setStrategyEnabled);
 router.post('/trades/close',    botCtrl.closeTrades);
 router.post('/trades/close-all', botCtrl.closeAllTrades);
 

@@ -150,6 +150,9 @@
   <div id="page-dashboard" class="page active">
     <div class="toolbar">
       <button class="btn primary" id="btn-bot-toggle">&#9654; Start Bot</button>
+      <span style="width:1px;height:20px;background:#30363d;display:inline-block;margin:0 .25rem"></span>
+      <button class="btn" id="btn-15m-toggle">15m Trend: —</button>
+      <button class="btn" id="btn-5m-toggle">5m Bounce: —</button>
       <button class="btn" id="btn-refresh-dash">&#8635; Refresh</button>
       <span class="refresh-info" id="dash-refresh-time"></span>
     </div>
@@ -337,6 +340,20 @@ document.querySelectorAll('nav a').forEach(link => {
 // ════════════════════════════════════════════════════════════════════════
 // Dashboard
 // ════════════════════════════════════════════════════════════════════════
+let _tick15mEnabled = true;
+let _tick5mEnabled  = true;
+
+function renderStrategyBtns() {
+  const b15 = document.getElementById('btn-15m-toggle');
+  const b5  = document.getElementById('btn-5m-toggle');
+  b15.textContent    = '15m Trend: ' + (_tick15mEnabled ? 'ON' : 'OFF');
+  b15.style.borderColor = _tick15mEnabled ? '#2ea043' : '#30363d';
+  b15.style.color       = _tick15mEnabled ? '#3fb950' : '#8b949e';
+  b5.textContent     = '5m Bounce: ' + (_tick5mEnabled ? 'ON' : 'OFF');
+  b5.style.borderColor  = _tick5mEnabled  ? '#d29922' : '#30363d';
+  b5.style.color        = _tick5mEnabled  ? '#d29922' : '#8b949e';
+}
+
 async function loadDashboard() {
   try {
     const res  = await fetch('/api/dashboard');
@@ -386,6 +403,11 @@ async function loadDashboard() {
       toggleBtn.textContent = '▶ Start Bot';
       toggleBtn.className = 'btn primary';
     }
+
+    // Strategy toggles
+    _tick15mEnabled = data.tick15mEnabled !== false;
+    _tick5mEnabled  = data.tick5mEnabled  !== false;
+    renderStrategyBtns();
 
     // Holdings section
     const holdingsEl = document.getElementById('holdings-section');
@@ -725,6 +747,25 @@ document.getElementById('btn-bot-toggle').addEventListener('click', async () => 
     await loadDashboard();
   } catch { /* dashboard reload will show correct state */ }
   btn.disabled = false;
+});
+
+// ── Strategy toggles ─────────────────────────────────────────────────────────
+document.getElementById('btn-15m-toggle').addEventListener('click', async () => {
+  await fetch('/api/bot/strategy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ strategy: '15m', enabled: !_tick15mEnabled }),
+  });
+  await loadDashboard();
+});
+
+document.getElementById('btn-5m-toggle').addEventListener('click', async () => {
+  await fetch('/api/bot/strategy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ strategy: '5m', enabled: !_tick5mEnabled }),
+  });
+  await loadDashboard();
 });
 
 // ── Sell helpers ─────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-const { tick, startBot, stopBot, getBotRunning, closeTradesByIds, getStatus } = require('../services/bot');
+const { tick, startBot, stopBot, getBotRunning, closeTradesByIds, getStatus, setTick15mEnabled, setTick5mEnabled } = require('../services/bot');
 const { read } = require('../utils/db');
 const logger = require('../utils/logger');
 
@@ -49,4 +49,22 @@ async function closeAllTrades(req, res) {
   }
 }
 
-module.exports = { triggerStart, triggerStop, closeTrades, closeAllTrades };
+function setStrategyEnabled(req, res) {
+  try {
+    const { strategy, enabled } = req.body;
+    if (strategy !== '15m' && strategy !== '5m') {
+      return res.status(400).json({ ok: false, error: 'strategy must be "15m" or "5m"' });
+    }
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ ok: false, error: 'enabled must be boolean' });
+    }
+    if (strategy === '15m') setTick15mEnabled(enabled);
+    else setTick5mEnabled(enabled);
+    logger.info(`Strategy ${strategy} ${enabled ? 'enabled' : 'disabled'} via API.`);
+    res.json({ ok: true, strategy, enabled });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+}
+
+module.exports = { triggerStart, triggerStop, closeTrades, closeAllTrades, setStrategyEnabled };
