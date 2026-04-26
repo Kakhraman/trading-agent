@@ -1,0 +1,122 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; min-height: 100vh; }
+
+/* ── Header / Nav ── */
+header {
+    background: #161b22; border-bottom: 1px solid #30363d;
+    padding: 0 2rem; display: flex; align-items: center; gap: 2rem; height: 56px; position: sticky; top: 0; z-index: 10;
+}
+header h1 { font-size: 1.05rem; font-weight: 700; color: #f0f6fc; white-space: nowrap; }
+nav { display: flex; gap: .25rem; }
+nav a {
+    color: #8b949e; text-decoration: none; font-size: .875rem;
+    padding: .35rem .85rem; border-radius: 6px; transition: background .15s, color .15s;
+}
+nav a:hover, nav a.active { background: #21262d; color: #f0f6fc; }
+
+main { max-width: 1300px; margin: 0 auto; padding: 1.5rem 2rem; }
+.page { display: none; } .page.active { display: block; }
+
+/* ── Stat cards ── */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.75rem; }
+.card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 1.1rem 1.4rem; }
+.card .label { font-size: .7rem; text-transform: uppercase; letter-spacing: .9px; color: #8b949e; margin-bottom: .4rem; }
+.card .value { font-size: 1.5rem; font-weight: 700; color: #f0f6fc; }
+.card .card-sub { font-size: .7rem; color: #8b949e; margin-top: .3rem; }
+.green { color: #3fb950 !important; } .red { color: #f85149 !important; } .yellow { color: #d29922 !important; }
+
+/* ── Section headers ── */
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .75rem; border-bottom: 1px solid #21262d; padding-bottom: .5rem; }
+.section-header h2 { font-size: .95rem; font-weight: 600; color: #f0f6fc; }
+
+/* ── Toolbar ── */
+.toolbar { display: flex; align-items: center; gap: .6rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.refresh-info { font-size: .72rem; color: #8b949e; margin-left: auto; }
+
+/* ── Filter bar ── */
+.filter-bar { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
+.filter-bar select, .filter-bar input {
+    background: #161b22; border: 1px solid #30363d; border-radius: 6px;
+    color: #c9d1d9; padding: .35rem .75rem; font-size: .82rem; outline: none;
+    transition: border-color .15s;
+}
+.filter-bar select:focus, .filter-bar input:focus { border-color: #388bfd; }
+.filter-bar input { width: 160px; }
+.filter-label { font-size: .78rem; color: #8b949e; }
+
+/* ── Tables ── */
+.table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid #30363d; }
+table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+thead th {
+    background: #161b22; color: #8b949e; font-weight: 600;
+    padding: .6rem 1rem; border-bottom: 1px solid #30363d;
+    white-space: nowrap; text-align: left;
+}
+thead th.sortable { cursor: pointer; user-select: none; }
+thead th.sortable:hover { color: #f0f6fc; }
+thead th .sort-icon { display: inline-block; margin-left: .3rem; opacity: .4; font-size: .7rem; }
+thead th.sort-asc .sort-icon::after  { content: '▲'; opacity: 1; }
+thead th.sort-desc .sort-icon::after { content: '▼'; opacity: 1; }
+thead th:not(.sort-asc):not(.sort-desc) .sort-icon::after { content: '⇅'; }
+
+tbody tr { border-bottom: 1px solid #21262d; transition: background .1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #161b22; }
+tbody td { padding: .55rem 1rem; white-space: nowrap; }
+.empty-row td { color: #8b949e; text-align: center; padding: 2.5rem; }
+
+/* ── Badges ── */
+.badge { display: inline-block; padding: .18rem .55rem; border-radius: 20px; font-size: .72rem; font-weight: 700; letter-spacing: .3px; }
+.badge-open   { background: #388bfd22; color: #388bfd; }
+.badge-closed { background: #3fb95022; color: #3fb950; }
+.badge-BUY    { background: #3fb95022; color: #3fb950; }
+.badge-SELL   { background: #f8514922; color: #f85149; }
+.badge-HOLD   { background: #8b949e22; color: #8b949e; }
+.badge-info   { background: #8b949e22; color: #8b949e; }
+.badge-warn   { background: #d2992222; color: #d29922; }
+.badge-error  { background: #f8514922; color: #f85149; }
+.badge-active { background: #388bfd22; color: #388bfd; }
+
+/* ── Buttons ── */
+.btn {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .4rem .9rem; border-radius: 6px; border: 1px solid #30363d;
+    background: #21262d; color: #c9d1d9; cursor: pointer; font-size: .82rem;
+    transition: background .15s, border-color .15s; white-space: nowrap;
+}
+.btn:hover { background: #30363d; border-color: #8b949e; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.primary { background: #238636; border-color: #2ea043; color: #fff; }
+.btn.primary:hover:not(:disabled) { background: #2ea043; }
+.btn.danger  { background: #b91c1c; border-color: #ef4444; color: #fff; }
+.btn.danger:hover:not(:disabled)  { background: #ef4444; }
+
+/* ── Open trades cards ── */
+.open-trades-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
+.open-trade-card {
+    background: #161b22; border: 1px solid #30363d; border-radius: 10px;
+    padding: 1.1rem 1.3rem;
+}
+.open-trade-card .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .85rem; }
+.open-trade-card .symbol { font-size: 1rem; font-weight: 700; color: #f0f6fc; }
+.open-trade-card .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem .75rem; }
+.open-trade-card .item .lbl { font-size: .65rem; text-transform: uppercase; letter-spacing: .8px; color: #8b949e; }
+.open-trade-card .item .val { font-size: .95rem; font-weight: 600; color: #f0f6fc; margin-top: .1rem; }
+
+/* ── Watchlist signal color ── */
+.signal-BUY  { color: #3fb950; font-weight: 700; }
+.signal-SELL { color: #f85149; font-weight: 700; }
+.signal-HOLD { color: #8b949e; }
+
+/* ── RSI color ── */
+.rsi-low  { color: #3fb950; }
+.rsi-high { color: #f85149; }
+.rsi-mid  { color: #c9d1d9; }
+
+/* ── Trend arrow ── */
+.trend-bull { color: #3fb950; } .trend-bear { color: #f85149; }
+
+@media (max-width: 700px) {
+    header { gap: 1rem; } main { padding: 1rem; }
+    .filter-bar input { width: 120px; }
+}
