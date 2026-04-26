@@ -36,6 +36,9 @@
       closeAllTrades: function () {
         return request($http.post('/api/trades/close-all'), 'raw');
       },
+      sellAsset: function (symbol) {
+        return request($http.post('/api/bot/sell-asset', { symbol: symbol }), 'raw');
+      },
       setStrategy: function (strategy, enabled) {
         return request($http.post('/api/settings/strategy', { strategy: strategy, enabled: enabled }), 'raw');
       },

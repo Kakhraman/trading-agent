@@ -112,7 +112,17 @@
           <tbody>
             <tr ng-repeat="asset in vm.data.cryptoAssets track by $index">
               <td class="text-center">
-                <input class="form-check-input" type="checkbox" ng-model="vm.selectedHoldings[asset.tradeId]" ng-disabled="!asset.tradeId" aria-label="Select {{ asset.symbol }}" />
+                <input class="form-check-input" type="checkbox"
+                  ng-if="!asset.external"
+                  ng-model="vm.selectedHoldings[asset.tradeId]"
+                  aria-label="Select {{ asset.symbol }}" />
+                <button class="btn btn-sm btn-outline-warning py-0 px-2"
+                  ng-if="asset.external"
+                  ng-click="vm.sellExternal(asset.symbol)"
+                  ng-disabled="vm.externalSelling[asset.symbol]">
+                  <span class="spinner-border spinner-border-sm" aria-hidden="true" ng-if="vm.externalSelling[asset.symbol]"></span>
+                  <span ng-if="!vm.externalSelling[asset.symbol]">Sell</span>
+                </button>
               </td>
               <td class="fw-bold text-white">
                 {{ asset.asset }}

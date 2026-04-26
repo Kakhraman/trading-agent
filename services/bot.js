@@ -453,11 +453,29 @@ async function closeTradesByIds(ids) {
   }
 }
 
+async function sellExternalAsset(symbol) {
+  const base = symbol.replace('USDT', '');
+  const { free: heldQty } = await getBalance(base);
+  if (!heldQty || heldQty <= 0) throw new Error(`No ${base} balance to sell`);
+
+  const price = await getPrice(symbol);
+  const order = await placeMarketOrder(symbol, 'SELL', heldQty);
+  const executedPrice = calcExecutedPrice(order, price);
+  const executedQty   = parseFloat(order.executedQty);
+
+  logger.info(`[${symbol}] External sell executed: qty=${executedQty}, price=${executedPrice.toFixed(4)}`);
+
+  const { free: newUsdt } = await getBalance('USDT');
+  append('balance', { timestamp: new Date().toISOString(), USDT: newUsdt, event: 'SELL_EXTERNAL', symbol });
+
+  return { symbol, executedPrice, executedQty };
+}
+
 module.exports = {
   tick, tick5m,
   getStatus, getWatchlistSnapshot,
   startBot, stopBot, getBotRunning,
   getTick15mEnabled, getTick5mEnabled, setTick15mEnabled, setTick5mEnabled,
   getWatchlist, addToWatchlist, removeFromWatchlist,
-  closeTradesByIds,
+  closeTradesByIds, sellExternalAsset,
 };

@@ -24,6 +24,7 @@ router.post('/bot/start',        botCtrl.triggerStart);
 router.post('/bot/stop',         botCtrl.triggerStop);
 router.post('/trades/close',     botCtrl.closeTrades);
 router.post('/trades/close-all', botCtrl.closeAllTrades);
+router.post('/bot/sell-asset',   botCtrl.sellAsset);
 
 // Settings
 router.get('/settings',                      settingsCtrl.getSettings);

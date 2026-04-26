@@ -1,4 +1,4 @@
-const { tick, startBot, stopBot, getBotRunning, closeTradesByIds, getStatus } = require('../services/bot');
+const { tick, startBot, stopBot, getBotRunning, closeTradesByIds, sellExternalAsset, getStatus } = require('../services/bot');
 const { read } = require('../utils/db');
 const logger = require('../utils/logger');
 
@@ -49,4 +49,17 @@ async function closeAllTrades(req, res) {
   }
 }
 
-module.exports = { triggerStart, triggerStop, closeTrades, closeAllTrades };
+async function sellAsset(req, res) {
+  try {
+    const symbol = (req.body.symbol || '').toUpperCase().trim();
+    if (!symbol) return res.status(400).json({ ok: false, error: 'symbol required' });
+    const result = await sellExternalAsset(symbol);
+    res.json({ ok: true, message: `Sold ${result.executedQty} ${symbol.replace('USDT', '')} @ $${result.executedPrice.toFixed(4)}` });
+  } catch (err) {
+    const msg = err.response?.data?.msg || err.message;
+    logger.error(`[sellAsset] ${msg}`);
+    res.status(500).json({ ok: false, error: msg });
+  }
+}
+
+module.exports = { triggerStart, triggerStop, closeTrades, closeAllTrades, sellAsset };

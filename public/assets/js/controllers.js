@@ -67,6 +67,8 @@
     vm.selectionCount = selectionCount;
     vm.sellSelected = sellSelected;
     vm.sellAll = sellAll;
+    vm.sellExternal = sellExternal;
+    vm.externalSelling = {};
 
     activate();
 
@@ -188,6 +190,28 @@
         .finally(function () {
           vm.actionLoading = null;
           clearSuccess();
+        });
+    }
+
+    function sellExternal(symbol) {
+      if (!$window.confirm('Sell all ' + symbol.replace('USDT', '') + ' holdings?')) return;
+      vm.externalSelling[symbol] = true;
+      vm.error = null;
+      vm.success = null;
+
+      ApiService.sellAsset(symbol)
+        .then(function (response) {
+          var message = response.message || ('Sold ' + symbol);
+          vm.success = message;
+          ToastService.success(message);
+          $timeout(function () { refresh(true); }, 1500);
+        })
+        .catch(function (error) {
+          vm.error = error.message;
+          ToastService.error(error.message, 'Sell asset');
+        })
+        .finally(function () {
+          vm.externalSelling[symbol] = false;
         });
     }
 
