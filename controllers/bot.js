@@ -59,9 +59,9 @@ async function closeAllTrades(req, res) {
 }
 
 async function sellAsset(req, res) {
+  const symbol = (req.body.symbol || '').toUpperCase().trim();
+  if (!symbol) return res.status(400).json({ ok: false, error: 'symbol required' });
   try {
-    const symbol = (req.body.symbol || '').toUpperCase().trim();
-    if (!symbol) return res.status(400).json({ ok: false, error: 'symbol required' });
     const result = await sellExternalAsset(symbol);
     res.json({ ok: true, message: `Sold ${result.executedQty} ${symbol.replace('USDT', '')} @ $${result.executedPrice.toFixed(4)}` });
   } catch (err) {

@@ -210,14 +210,15 @@ async function tickSymbol(symbol) {
     } else {
       const signal = evaluateTrendSignal(ind);
       logger.info(`[${symbol}][15m] Signal: ${signal}`);
-      // Check for external holding — sell it on SELL signal, skip BUY if already holding
+      // Check for external holding — ignore dust (< $1)
       const { free: extQty } = await getBalance(symbol.replace('USDT', '')).catch(() => ({ free: 0 }));
-      if (extQty > 0) {
+      const extValue = extQty * currentPrice;
+      if (extQty > 0 && extValue >= 1) {
         if (signal === 'SELL') {
-          logger.info(`[${symbol}][15m] Selling external holding qty=${extQty}, signal=SELL`);
+          logger.info(`[${symbol}][15m] Selling external holding qty=${extQty} (~$${extValue.toFixed(2)}), signal=SELL`);
           await sellExternalAsset(symbol);
         } else {
-          logger.info(`[${symbol}][15m] External holding present (qty=${extQty}), skipping BUY`);
+          logger.info(`[${symbol}][15m] External holding ~$${extValue.toFixed(2)}, skipping BUY`);
         }
       } else if (signal === 'BUY') {
         await openTrade(symbol, currentPrice, {
@@ -228,7 +229,7 @@ async function tickSymbol(symbol) {
     }
   } catch (err) {
     const msg = err.response?.data?.msg || err.message;
-    if (msg.startsWith('Need at least')) {
+    if (msg.startsWith('Need at least') || msg.startsWith('DUST:')) {
       logger.warn(`[${symbol}][15m] Skipping — ${msg}`);
     } else {
       logger.error(`[${symbol}][15m] Tick error: ${msg}`);
@@ -265,12 +266,13 @@ async function tick5mSymbol(symbol) {
       const signal = evaluateBounceSignal(ind);
       logger.info(`[${symbol}][5m] Bounce signal: ${signal}`);
       const { free: extQty } = await getBalance(symbol.replace('USDT', '')).catch(() => ({ free: 0 }));
-      if (extQty > 0) {
+      const extValue = extQty * currentPrice;
+      if (extQty > 0 && extValue >= 1) {
         if (signal === 'SELL') {
-          logger.info(`[${symbol}][5m] Selling external holding qty=${extQty}, signal=SELL`);
+          logger.info(`[${symbol}][5m] Selling external holding qty=${extQty} (~$${extValue.toFixed(2)}), signal=SELL`);
           await sellExternalAsset(symbol);
         } else {
-          logger.info(`[${symbol}][5m] External holding present (qty=${extQty}), skipping BUY`);
+          logger.info(`[${symbol}][5m] External holding ~$${extValue.toFixed(2)}, skipping BUY`);
         }
       } else if (signal === 'BUY') {
         await openTrade(symbol, currentPrice, {
@@ -281,7 +283,7 @@ async function tick5mSymbol(symbol) {
     }
   } catch (err) {
     const msg = err.response?.data?.msg || err.message;
-    if (msg.startsWith('Need at least')) {
+    if (msg.startsWith('Need at least') || msg.startsWith('DUST:')) {
       logger.warn(`[${symbol}][5m] Skipping — ${msg}`);
     } else {
       logger.error(`[${symbol}][5m] Bounce tick error: ${msg}`);
