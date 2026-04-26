@@ -169,6 +169,17 @@ async function getBalance(asset = 'USDT') {
 
 async function getAllBalances() {
   const account = await getAccountInfo();
+
+  // Lazily load demo step sizes for dust filtering
+  if (!_demoExchangeInfoCache || Date.now() - _demoExchangeInfoCacheAt >= EXCHANGE_INFO_TTL) {
+    try {
+      await privateRL.throttle(WEIGHT.exchangeInfo);
+      const { data } = await privateClient.get('/v3/exchangeInfo');
+      _demoExchangeInfoCache   = data;
+      _demoExchangeInfoCacheAt = Date.now();
+    } catch { /* skip filter if unavailable */ }
+  }
+
   const result = { usdt: { free: 0, locked: 0 }, assets: [] };
   for (const b of account.balances) {
     const free   = parseFloat(b.free);
@@ -176,6 +187,13 @@ async function getAllBalances() {
     if (b.asset === 'USDT') {
       result.usdt = { free, locked };
     } else if (free + locked > 0) {
+      // Skip dust: if free qty rounds to zero it can't be sold
+      if (_demoExchangeInfoCache) {
+        const sym  = _demoExchangeInfoCache.symbols.find(s => s.symbol === b.asset + 'USDT');
+        const lot  = sym?.filters.find(f => f.filterType === 'LOT_SIZE');
+        const step = lot ? parseFloat(lot.stepSize) : null;
+        if (step && floorToStepSize(free, step) <= 0) continue;
+      }
       result.assets.push({ asset: b.asset, free, locked });
     }
   }
@@ -205,6 +223,10 @@ async function placeMarketOrder(symbol, side, quantity) {
   const qtyStr    = adjQty.toFixed(precision);
 
   logger.info(`[${symbol}] ${side} qty=${qtyStr} (raw=${quantity}, stepSize=${stepSize})`);
+
+  if (parseFloat(qtyStr) <= 0) {
+    throw new Error(`DUST: ${symbol} qty=${quantity} rounds to zero with stepSize=${stepSize} — cannot sell`);
+  }
 
   const timestamp = Date.now();
   const params    = { symbol, side, type: 'MARKET', quantity: qtyStr, timestamp, recvWindow: 5000 };

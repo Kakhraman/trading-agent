@@ -65,9 +65,12 @@ async function sellAsset(req, res) {
     const result = await sellExternalAsset(symbol);
     res.json({ ok: true, message: `Sold ${result.executedQty} ${symbol.replace('USDT', '')} @ $${result.executedPrice.toFixed(4)}` });
   } catch (err) {
-    const msg = err.response?.data?.msg || err.message;
-    logger.error(`[sellAsset] ${msg}`);
-    res.status(500).json({ ok: false, error: msg });
+    const raw = err.response?.data?.msg || err.message;
+    const msg = raw.startsWith('DUST:')
+      ? `${symbol.replace('USDT', '')} balance is too small to sell (dust)`
+      : raw;
+    logger.warn(`[sellAsset] ${raw}`);
+    res.status(400).json({ ok: false, error: msg });
   }
 }
 
