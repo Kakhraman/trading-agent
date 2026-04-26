@@ -150,8 +150,21 @@ async function closeTrade(trade, price, reason) {
 
   const base = trade.symbol.replace('USDT', '');
   const { free: heldQty } = await getBalance(base).catch(() => ({ free: trade.quantity }));
-  const sellQty = heldQty > 0 ? Math.min(trade.quantity, heldQty) : trade.quantity;
 
+  // Asset is gone (sold externally, liquidated, or dust) — close the record without placing an order
+  if (heldQty < trade.quantity * 0.01) {
+    updateTrade(trade.id, {
+      status:      'CLOSED',
+      exitTime:    new Date().toISOString(),
+      exitPrice:   price,
+      pnl:         (price - trade.entryPrice) * trade.quantity,
+      closeReason: 'PHANTOM',
+    });
+    logger.warn(`[${trade.symbol}][${trade.strategy || '15m'}] Phantom-closed id=${trade.id} — held ${heldQty}, recorded ${trade.quantity}`);
+    return;
+  }
+
+  const sellQty = Math.min(trade.quantity, heldQty);
   const order = await placeMarketOrder(trade.symbol, 'SELL', sellQty);
   const executedPrice = calcExecutedPrice(order, price);
   const pnl = (executedPrice - trade.entryPrice) * sellQty;
@@ -460,12 +473,25 @@ async function closeTradesByIds(ids) {
       logger.warn(`[${trade.symbol}] Skipping manual close — symbol locked.`);
       continue;
     }
+    let price = null;
     try {
-      const price = await getPrice(trade.symbol);
+      price = await getPrice(trade.symbol);
       await closeTrade(trade, price, 'MANUAL');
     } catch (err) {
       const msg = err.response?.data?.msg || err.message;
-      logger.error(`[${trade.symbol}] Manual close error: ${msg}`);
+      const isPhantom = msg.includes('NOTIONAL') || msg.includes('insufficient balance') || msg.startsWith('DUST');
+      if (isPhantom) {
+        updateTrade(trade.id, {
+          status:      'CLOSED',
+          exitTime:    new Date().toISOString(),
+          exitPrice:   price ?? 0,
+          pnl:         price ? (price - trade.entryPrice) * trade.quantity : 0,
+          closeReason: 'PHANTOM',
+        });
+        logger.warn(`[${trade.symbol}] Phantom-closed id=${trade.id} — ${msg}`);
+      } else {
+        logger.error(`[${trade.symbol}] Manual close error: ${msg}`);
+      }
     }
   }
 }
