@@ -41,9 +41,18 @@ async function closeAllTrades(req, res) {
     const openIds = read('trades')
       .filter(t => t.status === 'OPEN')
       .map(t => t.id);
-    if (!openIds.length) return res.json({ ok: true, message: 'No open trades.' });
-    closeTradesByIds(openIds).catch(err => logger.error(`Close all trades error: ${err.message}`));
-    res.json({ ok: true, message: `Closing ${openIds.length} trade(s).` });
+    openIds.length && closeTradesByIds(openIds).catch(err => logger.error(`Close all trades error: ${err.message}`));
+
+    // Also sell all external (non-bot) holdings from the Binance account
+    const { assets } = await require('../services/binance').getAllBalances().catch(() => ({ assets: [] }));
+    const botAssets  = new Set(read('trades').filter(t => t.status === 'OPEN').map(t => t.symbol.replace('USDT', '')));
+    const externals  = assets.filter(b => !botAssets.has(b.asset) && b.free > 0);
+    externals.forEach(b => {
+      sellExternalAsset(b.asset + 'USDT').catch(err => logger.error(`Sell external ${b.asset} error: ${err.message}`));
+    });
+
+    const total = openIds.length + externals.length;
+    res.json({ ok: true, message: total ? `Closing ${total} position(s).` : 'No open positions.' });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }

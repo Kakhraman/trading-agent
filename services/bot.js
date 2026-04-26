@@ -197,7 +197,16 @@ async function tickSymbol(symbol) {
     } else {
       const signal = evaluateTrendSignal(ind);
       logger.info(`[${symbol}][15m] Signal: ${signal}`);
-      if (signal === 'BUY') {
+      // Check for external holding — sell it on SELL signal, skip BUY if already holding
+      const { free: extQty } = await getBalance(symbol.replace('USDT', '')).catch(() => ({ free: 0 }));
+      if (extQty > 0) {
+        if (signal === 'SELL') {
+          logger.info(`[${symbol}][15m] Selling external holding qty=${extQty}, signal=SELL`);
+          await sellExternalAsset(symbol);
+        } else {
+          logger.info(`[${symbol}][15m] External holding present (qty=${extQty}), skipping BUY`);
+        }
+      } else if (signal === 'BUY') {
         await openTrade(symbol, currentPrice, {
           slPct: TREND_SL_PCT, tpPct: TREND_TP_PCT, capitalPct: TREND_CAPITAL_PCT,
           strategy: '15m', indicators: { ema50, ema200, rsi14 },
@@ -242,7 +251,15 @@ async function tick5mSymbol(symbol) {
     } else {
       const signal = evaluateBounceSignal(ind);
       logger.info(`[${symbol}][5m] Bounce signal: ${signal}`);
-      if (signal === 'BUY') {
+      const { free: extQty } = await getBalance(symbol.replace('USDT', '')).catch(() => ({ free: 0 }));
+      if (extQty > 0) {
+        if (signal === 'SELL') {
+          logger.info(`[${symbol}][5m] Selling external holding qty=${extQty}, signal=SELL`);
+          await sellExternalAsset(symbol);
+        } else {
+          logger.info(`[${symbol}][5m] External holding present (qty=${extQty}), skipping BUY`);
+        }
+      } else if (signal === 'BUY') {
         await openTrade(symbol, currentPrice, {
           slPct: BOUNCE_SL_PCT, tpPct: BOUNCE_TP_PCT, capitalPct: BOUNCE_CAPITAL_PCT,
           strategy: '5m', indicators: { ema9, ema21, rsi14 },

@@ -88,6 +88,7 @@ _addInterceptors(privateClient, privateRL);
 // ── Exchange info (memory cache, 1h TTL) ─────────────────────────────────────
 
 let _exchangeInfoCache = null, _exchangeInfoCacheAt = 0;
+let _demoExchangeInfoCache = null, _demoExchangeInfoCacheAt = 0;
 const EXCHANGE_INFO_TTL = 60 * 60_000;
 
 async function getExchangeInfo() {
@@ -110,7 +111,10 @@ async function getStepSize(symbol) {
 }
 
 function floorToStepSize(quantity, stepSize) {
-  const precision = stepSize < 1 ? Math.round(-Math.log10(stepSize)) : 0;
+  if (stepSize >= 1) {
+    return Math.floor(quantity / stepSize) * stepSize;
+  }
+  const precision = Math.round(-Math.log10(stepSize));
   const factor    = Math.pow(10, precision);
   return Math.floor(quantity * factor) / factor;
 }
@@ -178,11 +182,29 @@ async function getAllBalances() {
   return result;
 }
 
+async function _getDemoStepSize(symbol) {
+  try {
+    if (!_demoExchangeInfoCache || Date.now() - _demoExchangeInfoCacheAt >= EXCHANGE_INFO_TTL) {
+      await privateRL.throttle(WEIGHT.exchangeInfo);
+      const { data } = await privateClient.get('/v3/exchangeInfo');
+      _demoExchangeInfoCache   = data;
+      _demoExchangeInfoCacheAt = Date.now();
+    }
+    const sym = _demoExchangeInfoCache.symbols.find(s => s.symbol === symbol);
+    const lot = sym?.filters.find(f => f.filterType === 'LOT_SIZE');
+    return lot ? parseFloat(lot.stepSize) : null;
+  } catch {
+    return getStepSize(symbol); // fall back to real exchange info
+  }
+}
+
 async function placeMarketOrder(symbol, side, quantity) {
-  const stepSize  = await getStepSize(symbol);
+  const stepSize  = await _getDemoStepSize(symbol);
   const adjQty    = stepSize ? floorToStepSize(quantity, stepSize) : quantity;
   const precision = stepSize && stepSize < 1 ? Math.round(-Math.log10(stepSize)) : 0;
   const qtyStr    = adjQty.toFixed(precision);
+
+  logger.info(`[${symbol}] ${side} qty=${qtyStr} (raw=${quantity}, stepSize=${stepSize})`);
 
   const timestamp = Date.now();
   const params    = { symbol, side, type: 'MARKET', quantity: qtyStr, timestamp, recvWindow: 5000 };

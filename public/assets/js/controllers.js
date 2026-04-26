@@ -48,8 +48,8 @@
     }
   }
 
-  DashboardController.$inject = ['$interval', '$rootScope', '$scope', '$timeout', '$window', 'APP_REFRESH_MS', 'ApiService', 'ToastService'];
-  function DashboardController($interval, $rootScope, $scope, $timeout, $window, APP_REFRESH_MS, ApiService, ToastService) {
+  DashboardController.$inject = ['$interval', '$q', '$rootScope', '$scope', '$timeout', '$window', 'APP_REFRESH_MS', 'ApiService', 'ToastService'];
+  function DashboardController($interval, $q, $rootScope, $scope, $timeout, $window, APP_REFRESH_MS, ApiService, ToastService) {
     var vm = this;
     var refreshTimer = null;
 
@@ -67,8 +67,7 @@
     vm.selectionCount = selectionCount;
     vm.sellSelected = sellSelected;
     vm.sellAll = sellAll;
-    vm.sellExternal = sellExternal;
-    vm.externalSelling = {};
+    vm.assetKey = assetKey;
 
     activate();
 
@@ -135,35 +134,39 @@
         });
     }
 
+    function assetKey(asset) {
+      return asset.external ? ('ext:' + asset.symbol) : asset.tradeId;
+    }
+
     function toggleAllHoldings() {
       vm.selectedHoldings = {};
       if (!vm.selectAll || !vm.data) return;
-
       vm.data.cryptoAssets.forEach(function (asset) {
-        if (asset.tradeId) vm.selectedHoldings[asset.tradeId] = true;
+        var key = assetKey(asset);
+        if (key) vm.selectedHoldings[key] = true;
       });
     }
 
     function selectionCount() {
-      return Object.keys(vm.selectedHoldings).filter(function (id) {
-        return vm.selectedHoldings[id];
+      return Object.keys(vm.selectedHoldings).filter(function (k) {
+        return vm.selectedHoldings[k];
       }).length;
     }
 
-    function selectedIds() {
-      return Object.keys(vm.selectedHoldings).filter(function (id) {
-        return vm.selectedHoldings[id];
-      });
-    }
-
     function sellSelected() {
-      var ids = selectedIds();
-      if (!ids.length) {
+      var selected = Object.keys(vm.selectedHoldings).filter(function (k) { return vm.selectedHoldings[k]; });
+      if (!selected.length) {
         ToastService.info('Select at least one position.');
         return;
       }
+      var tradeIds = selected.filter(function (k) { return !k.startsWith('ext:'); });
+      var extSymbols = selected.filter(function (k) { return k.startsWith('ext:'); }).map(function (k) { return k.slice(4); });
 
-      closePositions(function () { return ApiService.closeTrades(ids); }, 'Closing selected position(s).');
+      var requests = [];
+      if (tradeIds.length) requests.push(ApiService.closeTrades(tradeIds));
+      extSymbols.forEach(function (sym) { requests.push(ApiService.sellAsset(sym)); });
+
+      closePositions(function () { return $q.all(requests); }, 'Closing selected position(s).');
     }
 
     function sellAll() {
@@ -190,28 +193,6 @@
         .finally(function () {
           vm.actionLoading = null;
           clearSuccess();
-        });
-    }
-
-    function sellExternal(symbol) {
-      if (!$window.confirm('Sell all ' + symbol.replace('USDT', '') + ' holdings?')) return;
-      vm.externalSelling[symbol] = true;
-      vm.error = null;
-      vm.success = null;
-
-      ApiService.sellAsset(symbol)
-        .then(function (response) {
-          var message = response.message || ('Sold ' + symbol);
-          vm.success = message;
-          ToastService.success(message);
-          $timeout(function () { refresh(true); }, 1500);
-        })
-        .catch(function (error) {
-          vm.error = error.message;
-          ToastService.error(error.message, 'Sell asset');
-        })
-        .finally(function () {
-          vm.externalSelling[symbol] = false;
         });
     }
 
