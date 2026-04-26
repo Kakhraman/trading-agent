@@ -1,0 +1,125 @@
+<section>
+  <div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mb-4">
+    <div>
+      <p class="page-kicker">Trades</p>
+      <h1 class="page-title">Execution history</h1>
+      <p class="text-muted-app mb-0">Filter, sort, and inspect every open or closed trade record.</p>
+    </div>
+    <div class="toolbar-actions d-flex flex-wrap align-items-center gap-2">
+      <span class="text-muted-app small" ng-if="vm.lastUpdated">Updated {{ vm.lastUpdated | date:'mediumTime' }}</span>
+      <button type="button" class="btn btn-outline-light" ng-click="vm.refresh()" ng-disabled="vm.loading">
+        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" ng-if="vm.loading"></span>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <div class="alert alert-danger" role="alert" ng-if="vm.error">{{ vm.error }}</div>
+
+  <div class="surface-card p-3 p-lg-4 mb-3">
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-md-6 col-xl-2">
+        <label class="form-label small text-muted-app">Symbol</label>
+        <select class="form-select" ng-model="vm.filters.symbol" ng-change="vm.applyFilters()">
+          <option value="">All</option>
+          <option ng-repeat="symbol in vm.symbols track by symbol" value="{{ symbol }}">{{ symbol }}</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-6 col-xl-2">
+        <label class="form-label small text-muted-app">Status</label>
+        <select class="form-select" ng-model="vm.filters.status" ng-change="vm.applyFilters()">
+          <option value="">All</option>
+          <option value="OPEN">Open</option>
+          <option value="CLOSED">Closed</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-6 col-xl-2">
+        <label class="form-label small text-muted-app">Strategy</label>
+        <select class="form-select" ng-model="vm.filters.strategy" ng-change="vm.applyFilters()">
+          <option value="">All</option>
+          <option value="15m">15m Trend</option>
+          <option value="5m">5m Bounce</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-6 col-xl-2">
+        <label class="form-label small text-muted-app">Reason</label>
+        <select class="form-select" ng-model="vm.filters.reason" ng-change="vm.applyFilters()">
+          <option value="">All</option>
+          <option value="SIGNAL">Signal</option>
+          <option value="STOP_LOSS">Stop Loss</option>
+          <option value="TAKE_PROFIT">Take Profit</option>
+          <option value="MANUAL">Manual</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-8 col-xl-3">
+        <label class="form-label small text-muted-app">Search ID</label>
+        <input class="form-control" type="search" placeholder="Order or trade ID"
+          ng-model="vm.filters.search" ng-change="vm.applyFilters()" ng-model-options="{ debounce: 150 }" />
+      </div>
+      <div class="col-12 col-md-4 col-xl-1 d-grid">
+        <button type="button" class="btn btn-outline-light" ng-click="vm.clearFilters()">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <span class="text-muted-app small">Showing {{ vm.trades.length }} of {{ vm.allTrades.length }} trades</span>
+  </div>
+
+  <div class="surface-card p-2 p-lg-3">
+    <div class="table-shell">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th ng-class="vm.sortClass('symbol')" ng-click="vm.sortBy('symbol')">Symbol</th>
+            <th ng-class="vm.sortClass('strategy')" ng-click="vm.sortBy('strategy')">Strategy</th>
+            <th ng-class="vm.sortClass('status')" ng-click="vm.sortBy('status')">Status</th>
+            <th ng-class="vm.sortClass('entryTime')" ng-click="vm.sortBy('entryTime')">Entry Time</th>
+            <th ng-class="vm.sortClass('entryPrice')" ng-click="vm.sortBy('entryPrice')">Entry Price</th>
+            <th ng-class="vm.sortClass('exitTime')" ng-click="vm.sortBy('exitTime')">Exit Time</th>
+            <th ng-class="vm.sortClass('exitPrice')" ng-click="vm.sortBy('exitPrice')">Exit Price</th>
+            <th ng-class="vm.sortClass('quantity')" ng-click="vm.sortBy('quantity')">Qty</th>
+            <th ng-class="vm.sortClass('pnl')" ng-click="vm.sortBy('pnl')">PnL</th>
+            <th ng-class="vm.sortClass('closeReason')" ng-click="vm.sortBy('closeReason')">Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-if="vm.loading && !vm.trades.length">
+            <td colspan="11" class="text-center py-5">
+              <div class="spinner-border text-success mb-2" role="status" aria-hidden="true"></div>
+              <div class="text-muted-app">Loading trades...</div>
+            </td>
+          </tr>
+          <tr ng-if="!vm.loading && !vm.trades.length">
+            <td colspan="11" class="text-center py-5 text-muted-app">No trades match the current filters.</td>
+          </tr>
+          <tr ng-repeat="trade in vm.trades track by trade.id">
+            <td class="font-monospace small">{{ trade.id }}</td>
+            <td class="fw-bold text-white">{{ trade.symbol }}</td>
+            <td>
+              <span class="badge rounded-pill" ng-class="trade.strategy === '5m' ? 'badge-soft-warning' : 'badge-soft-primary'">
+                {{ trade.strategy | strategyName }}
+              </span>
+            </td>
+            <td>
+              <span class="badge rounded-pill" ng-class="trade.status === 'OPEN' ? 'badge-soft-primary' : 'badge-soft-muted'">
+                {{ trade.status }}
+              </span>
+            </td>
+            <td>{{ trade.entryTime | appDateTime }}</td>
+            <td>{{ trade.entryPrice | appMoney }}</td>
+            <td>{{ trade.exitTime | appDateTime }}</td>
+            <td>{{ trade.exitPrice | appMoney }}</td>
+            <td>{{ trade.quantity | appNumber:6 }}</td>
+            <td ng-class="{ positive: trade.pnl >= 0, negative: trade.pnl < 0 }">
+              <span ng-if="trade.pnl === undefined || trade.pnl === null">-</span>
+              <span ng-if="trade.pnl !== undefined && trade.pnl !== null">{{ trade.pnl | appSigned:2 }}</span>
+            </td>
+            <td>{{ trade.closeReason || '-' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

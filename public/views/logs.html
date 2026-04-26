@@ -1,0 +1,67 @@
+<section>
+  <div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mb-4">
+    <div>
+      <p class="page-kicker">Logs</p>
+      <h1 class="page-title">Runtime events</h1>
+      <p class="text-muted-app mb-0">Recent bot, strategy, and API messages.</p>
+    </div>
+    <div class="toolbar-actions d-flex flex-wrap align-items-center gap-2">
+      <span class="text-muted-app small" ng-if="vm.lastUpdated">Updated {{ vm.lastUpdated | date:'mediumTime' }}</span>
+      <button type="button" class="btn btn-outline-light" ng-click="vm.refresh()" ng-disabled="vm.loading">
+        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" ng-if="vm.loading"></span>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <div class="alert alert-danger" role="alert" ng-if="vm.error">{{ vm.error }}</div>
+
+  <div class="surface-card p-3 p-lg-4 mb-3">
+    <div class="row g-3 align-items-end">
+      <div class="col-12 col-md-4 col-xl-2">
+        <label class="form-label small text-muted-app">Level</label>
+        <select class="form-select" ng-model="vm.filters.level" ng-change="vm.applyFilters()">
+          <option value="">All</option>
+          <option value="INFO">INFO</option>
+          <option value="WARN">WARN</option>
+          <option value="ERROR">ERROR</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-8 col-xl-5">
+        <label class="form-label small text-muted-app">Search message</label>
+        <input class="form-control" type="search" placeholder="Search logs"
+          ng-model="vm.filters.search" ng-change="vm.applyFilters()" ng-model-options="{ debounce: 150 }" />
+      </div>
+    </div>
+  </div>
+
+  <div class="surface-card p-2 p-lg-3">
+    <div class="table-shell">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th style="width: 220px;">Time</th>
+            <th style="width: 100px;">Level</th>
+            <th>Message</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-if="vm.loading && !vm.logs.length">
+            <td colspan="3" class="text-center py-5">
+              <div class="spinner-border text-success mb-2" role="status" aria-hidden="true"></div>
+              <div class="text-muted-app">Loading logs...</div>
+            </td>
+          </tr>
+          <tr ng-if="!vm.loading && !vm.logs.length">
+            <td colspan="3" class="text-center py-5 text-muted-app">No log entries match.</td>
+          </tr>
+          <tr ng-repeat="entry in vm.logs track by $index">
+            <td class="font-monospace small">{{ entry.timestamp | appDateTime }}</td>
+            <td><span class="badge rounded-pill" ng-class="vm.levelClass(entry.level)">{{ entry.level }}</span></td>
+            <td>{{ entry.message }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

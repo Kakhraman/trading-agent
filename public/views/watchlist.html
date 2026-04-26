@@ -1,0 +1,72 @@
+<section>
+  <div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mb-4">
+    <div>
+      <p class="page-kicker">Watchlist</p>
+      <h1 class="page-title">Market signals</h1>
+      <p class="text-muted-app mb-0">Live 15m trend and 5m bounce indicators for tracked pairs.</p>
+    </div>
+    <div class="toolbar-actions d-flex flex-wrap align-items-center gap-2">
+      <span class="text-muted-app small" ng-if="vm.lastUpdated">Updated {{ vm.lastUpdated | date:'mediumTime' }}</span>
+      <button type="button" class="btn btn-outline-light" ng-click="vm.refresh()" ng-disabled="vm.loading">
+        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" ng-if="vm.loading"></span>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <div class="alert alert-danger" role="alert" ng-if="vm.error">{{ vm.error }}</div>
+
+  <div class="surface-card p-2 p-lg-3">
+    <div class="table-shell">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th rowspan="2">Symbol</th>
+            <th rowspan="2" ng-class="vm.sortClass('price')" ng-click="vm.sortBy('price')">Price</th>
+            <th colspan="4" class="text-center text-success">15m Trend</th>
+            <th colspan="4" class="text-center text-warning">5m Bounce</th>
+            <th rowspan="2">Position</th>
+          </tr>
+          <tr>
+            <th ng-class="vm.sortClass('ema50')" ng-click="vm.sortBy('ema50')">EMA 50</th>
+            <th ng-class="vm.sortClass('ema200')" ng-click="vm.sortBy('ema200')">EMA 200</th>
+            <th ng-class="vm.sortClass('rsi15m')" ng-click="vm.sortBy('rsi15m')">RSI</th>
+            <th ng-class="vm.sortClass('signal15m')" ng-click="vm.sortBy('signal15m')">Signal</th>
+            <th ng-class="vm.sortClass('ema9')" ng-click="vm.sortBy('ema9')">EMA 9</th>
+            <th ng-class="vm.sortClass('ema21')" ng-click="vm.sortBy('ema21')">EMA 21</th>
+            <th ng-class="vm.sortClass('rsi5m')" ng-click="vm.sortBy('rsi5m')">RSI</th>
+            <th ng-class="vm.sortClass('signal5m')" ng-click="vm.sortBy('signal5m')">Signal</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr ng-if="vm.loading && !vm.rows.length">
+            <td colspan="11" class="text-center py-5">
+              <div class="spinner-border text-success mb-2" role="status" aria-hidden="true"></div>
+              <div class="text-muted-app">Fetching indicators...</div>
+            </td>
+          </tr>
+          <tr ng-if="!vm.loading && !vm.rows.length">
+            <td colspan="11" class="text-center py-5 text-muted-app">No watchlist symbols configured.</td>
+          </tr>
+          <tr ng-repeat="row in vm.rows track by row.symbol">
+            <td class="fw-bold text-white">{{ row.symbol }}</td>
+            <td ng-if="row.error" colspan="10" class="text-danger">{{ row.error }}</td>
+            <td ng-if="!row.error">{{ row.price | appMoney }}</td>
+            <td ng-if="!row.error" class="text-muted-app">{{ row.ema50 | appMoney }}</td>
+            <td ng-if="!row.error" class="text-muted-app">{{ row.ema200 | appMoney }}</td>
+            <td ng-if="!row.error" ng-class="vm.rsiClass(row.rsi15m)">{{ row.rsi15m | appNumber:1 }}</td>
+            <td ng-if="!row.error"><span ng-class="vm.signalClass(row.signal15m)">{{ row.signal15m }}</span></td>
+            <td ng-if="!row.error" class="text-muted-app">{{ row.ema9 | appMoney }}</td>
+            <td ng-if="!row.error" class="text-muted-app">{{ row.ema21 | appMoney }}</td>
+            <td ng-if="!row.error" ng-class="vm.rsiClass(row.rsi5m)">{{ row.rsi5m | appNumber:1 }}</td>
+            <td ng-if="!row.error"><span ng-class="vm.signalClass(row.signal5m)">{{ row.signal5m }}</span></td>
+            <td ng-if="!row.error">
+              <span class="badge rounded-pill badge-soft-primary" ng-if="row.hasOpenTrade">{{ (row.openStrategy || 'ACTIVE') | uppercase }}</span>
+              <span class="text-muted-app" ng-if="!row.hasOpenTrade">-</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

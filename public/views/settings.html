@@ -1,0 +1,109 @@
+<section>
+  <div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mb-4">
+    <div>
+      <p class="page-kicker">Settings</p>
+      <h1 class="page-title">Strategy setup</h1>
+      <p class="text-muted-app mb-0">Enable strategies and maintain the Binance watchlist.</p>
+    </div>
+    <div class="toolbar-actions d-flex flex-wrap gap-2">
+      <button type="button" class="btn btn-outline-light" ng-click="vm.refresh()" ng-disabled="vm.loading">
+        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" ng-if="vm.loading"></span>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <div class="alert alert-danger" role="alert" ng-if="vm.error">{{ vm.error }}</div>
+  <div class="alert alert-success" role="alert" ng-if="vm.success">{{ vm.success }}</div>
+
+  <div class="state-card text-center" ng-if="vm.loading">
+    <div class="spinner-border text-success mb-3" role="status" aria-hidden="true"></div>
+    <div class="fw-bold text-white">Loading settings</div>
+    <div>Fetching strategy flags and watchlist symbols.</div>
+  </div>
+
+  <div ng-if="!vm.loading">
+    <div class="row g-3 mb-4">
+      <div class="col-12 col-lg-6">
+        <div class="surface-card p-3 p-lg-4 h-100">
+          <div class="d-flex justify-content-between align-items-start gap-3">
+            <div>
+              <h2 class="section-title mb-1">15m Trend</h2>
+              <p class="text-muted-app mb-0">EMA50 / EMA200 / RSI14 on :00, :15, :30, :45.</p>
+            </div>
+            <span class="badge rounded-pill" ng-class="vm.data.tick15mEnabled ? 'badge-soft-primary' : 'badge-soft-muted'">
+              {{ vm.data.tick15mEnabled ? 'Enabled' : 'Disabled' }}
+            </span>
+          </div>
+          <button type="button" class="btn mt-4" ng-class="vm.data.tick15mEnabled ? 'btn-outline-light' : 'btn-primary'"
+            ng-click="vm.toggleStrategy('15m')" ng-disabled="vm.savingStrategy">
+            <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" ng-if="vm.savingStrategy === '15m'"></span>
+            {{ vm.data.tick15mEnabled ? 'Disable' : 'Enable' }}
+          </button>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6">
+        <div class="surface-card p-3 p-lg-4 h-100">
+          <div class="d-flex justify-content-between align-items-start gap-3">
+            <div>
+              <h2 class="section-title mb-1">5m Bounce</h2>
+              <p class="text-muted-app mb-0">EMA9 / EMA21 / RSI14 on every 5-minute tick.</p>
+            </div>
+            <span class="badge rounded-pill" ng-class="vm.data.tick5mEnabled ? 'badge-soft-primary' : 'badge-soft-muted'">
+              {{ vm.data.tick5mEnabled ? 'Enabled' : 'Disabled' }}
+            </span>
+          </div>
+          <button type="button" class="btn mt-4" ng-class="vm.data.tick5mEnabled ? 'btn-outline-light' : 'btn-primary'"
+            ng-click="vm.toggleStrategy('5m')" ng-disabled="vm.savingStrategy">
+            <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" ng-if="vm.savingStrategy === '5m'"></span>
+            {{ vm.data.tick5mEnabled ? 'Disable' : 'Enable' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="surface-card p-3 p-lg-4">
+      <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-3">
+        <div>
+          <h2 class="section-title mb-1">Watchlist</h2>
+          <p class="text-muted-app mb-0">{{ vm.data.watchlist.length }} symbol{{ vm.data.watchlist.length === 1 ? '' : 's' }} configured.</p>
+        </div>
+        <form class="d-flex flex-column flex-sm-row gap-2" ng-submit="vm.addSymbol()">
+          <input class="form-control mobile-full text-uppercase" type="text" placeholder="BTCUSDT"
+            ng-model="vm.newSymbol" ng-disabled="vm.adding" autocomplete="off" />
+          <button type="submit" class="btn btn-primary mobile-full" ng-disabled="vm.adding || !vm.newSymbol">
+            <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" ng-if="vm.adding"></span>
+            Add
+          </button>
+        </form>
+      </div>
+
+      <div class="table-shell">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th style="width: 64px;">#</th>
+              <th>Symbol</th>
+              <th class="text-end" style="width: 140px;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr ng-if="!vm.data.watchlist.length">
+              <td colspan="3" class="text-center py-5 text-muted-app">No symbols in watchlist.</td>
+            </tr>
+            <tr ng-repeat="symbol in vm.data.watchlist track by symbol">
+              <td class="text-muted-app">{{ $index + 1 }}</td>
+              <td class="fw-bold text-white">{{ symbol }}</td>
+              <td class="text-end">
+                <button type="button" class="btn btn-sm btn-outline-danger" ng-click="vm.removeSymbol(symbol)" ng-disabled="vm.removing[symbol]">
+                  <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" ng-if="vm.removing[symbol]"></span>
+                  Remove
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>

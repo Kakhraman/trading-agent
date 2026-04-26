@@ -1,235 +1,80 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark" ng-app="tradingApp" ng-controller="ShellController as shell">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trading Bot — Dashboard</title>
-  <link href="./assets/css/main.css" rel="stylesheet"/>
+  <title>Trading Bot Dashboard</title>
+  <base href="/" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous" />
+  <link href="/assets/css/main.css" rel="stylesheet" />
 </head>
-<body>
+<body ng-cloak>
+  <div class="offline-banner text-center px-3 py-2" ng-if="shell.offline">
+    Server offline. Make sure <code>npm start</code> is running, then refresh.
+  </div>
 
-<div id="offline-banner" style="display:none;background:#b91c1c;color:#fff;text-align:center;padding:.55rem;font-size:.85rem;font-weight:600;letter-spacing:.3px">
-  &#9888; Server offline — make sure <code style="background:rgba(0,0,0,.25);padding:.1rem .4rem;border-radius:4px">npm start</code> is running, then refresh.
-</div>
-<header>
-  <h1>&#9881; Trading Bot</h1>
-  <nav>
-    <a href="#" class="active" data-page="dashboard">Dashboard</a>
-    <a href="#" data-page="watchlist">Watchlist</a>
-    <a href="#" data-page="trades">Trades</a>
-    <a href="#" data-page="logs">Logs</a>
-    <a href="#" data-page="settings">Settings</a>
+  <nav class="navbar navbar-expand-lg app-navbar sticky-top">
+    <div class="container-fluid app-nav-container">
+      <a class="navbar-brand d-flex align-items-center gap-2" href="/dashboard" ng-click="shell.closeMenu()">
+        <span class="brand-mark">TB</span>
+        <span class="brand-copy">
+          <span class="brand-title">Trading Bot</span>
+          <span class="brand-subtitle">Spot testnet control</span>
+        </span>
+      </a>
+
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#appNav"
+        aria-controls="appNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="appNav">
+        <ul class="navbar-nav ms-lg-4 gap-lg-1">
+          <li class="nav-item" ng-repeat="route in shell.routes">
+            <a class="nav-link" ng-class="{ active: shell.isActive(route.path) }"
+              ng-href="{{ route.path }}" ng-click="shell.closeMenu()">{{ route.label }}</a>
+          </li>
+        </ul>
+
+        <div class="ms-lg-auto mt-3 mt-lg-0 d-flex flex-wrap align-items-center gap-2">
+          <span class="status-pill"
+            ng-class="shell.status && shell.status.isRunning ? 'status-running' : 'status-idle'">
+            {{ shell.status && shell.status.isRunning ? 'Bot running' : 'Bot stopped' }}
+          </span>
+        </div>
+      </div>
+    </div>
   </nav>
-</header>
 
-<main>
+  <main class="container-fluid app-shell py-4">
+    <div ng-view class="route-view"></div>
+  </main>
 
-  <!-- ════════════════════════════ DASHBOARD ════════════════════════════ -->
-  <div id="page-dashboard" class="page active">
-    <div class="toolbar">
-      <button class="btn primary" id="btn-bot-toggle">&#9654; Start Bot</button>
-      <button class="btn" id="btn-refresh-dash">&#8635; Refresh</button>
-      <span class="refresh-info" id="dash-refresh-time"></span>
-    </div>
-
-    <div class="cards">
-      <div class="card">
-        <div class="label">Total Balance</div>
-        <div class="value" id="stat-total-balance">—</div>
-        <div class="card-sub" id="stat-total-balance-sub"></div>
-      </div>
-      <div class="card">
-        <div class="label">USDT Free</div>
-        <div class="value" id="stat-balance">—</div>
-      </div>
-      <div class="card">
-        <div class="label">Crypto Value</div>
-        <div class="value" id="stat-crypto-value">—</div>
-        <div class="card-sub">open positions</div>
-      </div>
-      <div class="card">
-        <div class="label">Total PnL</div>
-        <div class="value" id="stat-pnl">—</div>
-        <div class="card-sub" id="stat-pnl-sub"></div>
-      </div>
-      <div class="card">
-        <div class="label">Open Trades</div>
-        <div class="value" id="stat-open">—</div>
-      </div>
-      <div class="card">
-        <div class="label">Win Rate</div>
-        <div class="value" id="stat-winrate">—</div>
-        <div class="card-sub" id="stat-winrate-sub"></div>
-      </div>
-    </div>
-
-    <div id="holdings-section"></div>
-
-    <div class="section-header"><h2>Open Positions</h2></div>
-    <div id="open-trades-grid" class="open-trades-grid">
-      <p style="color:#8b949e;font-size:.875rem">No open positions.</p>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════ WATCHLIST ════════════════════════════ -->
-  <div id="page-watchlist" class="page">
-    <div class="toolbar">
-      <button class="btn" id="btn-refresh-wl">&#8635; Refresh</button>
-      <span style="font-size:.78rem;color:#8b949e">Live indicators for all tracked pairs (15m)</span>
-      <span class="refresh-info" id="wl-refresh-time"></span>
-    </div>
-    <div class="table-wrap">
-      <table id="wl-table">
-        <thead>
-          <tr>
-            <th rowspan="2">Symbol</th>
-            <th rowspan="2" class="sortable" data-col="price">Price<span class="sort-icon"></span></th>
-            <th colspan="4" style="text-align:center;border-bottom:1px solid #388bfd44;color:#388bfd">15m Trend</th>
-            <th colspan="4" style="text-align:center;border-bottom:1px solid #d2992244;color:#d29922">5m Bounce</th>
-            <th rowspan="2">Position</th>
-          </tr>
-          <tr>
-            <th class="sortable" data-col="ema50">EMA 50<span class="sort-icon"></span></th>
-            <th class="sortable" data-col="ema200">EMA 200<span class="sort-icon"></span></th>
-            <th class="sortable" data-col="rsi15m">RSI<span class="sort-icon"></span></th>
-            <th class="sortable" data-col="signal15m">Signal<span class="sort-icon"></span></th>
-            <th class="sortable" data-col="ema9">EMA 9<span class="sort-icon"></span></th>
-            <th class="sortable" data-col="ema21">EMA 21<span class="sort-icon"></span></th>
-            <th class="sortable" data-col="rsi5m">RSI<span class="sort-icon"></span></th>
-            <th class="sortable" data-col="signal5m">Signal<span class="sort-icon"></span></th>
-          </tr>
-        </thead>
-        <tbody id="wl-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════ TRADES ══════════════════════════════ -->
-  <div id="page-trades" class="page">
-    <div class="toolbar">
-      <div class="filter-bar">
-        <span class="filter-label">Symbol:</span>
-        <select id="filter-symbol">
-          <option value="">All</option>
-        </select>
-        <span class="filter-label">Status:</span>
-        <select id="filter-status">
-          <option value="">All</option>
-          <option value="OPEN">Open</option>
-          <option value="CLOSED">Closed</option>
-        </select>
-        <span class="filter-label">Strategy:</span>
-        <select id="filter-strategy">
-          <option value="">All</option>
-          <option value="15m">15m Trend</option>
-          <option value="5m">5m Bounce</option>
-        </select>
-        <span class="filter-label">Reason:</span>
-        <select id="filter-reason">
-          <option value="">All</option>
-          <option value="SIGNAL">Signal</option>
-          <option value="STOP_LOSS">Stop Loss</option>
-          <option value="TAKE_PROFIT">Take Profit</option>
-        </select>
-        <input id="filter-search" type="text" placeholder="Search ID…" />
-        <button class="btn" id="btn-clear-filters">&#10005; Clear</button>
-      </div>
-      <button class="btn" id="btn-refresh-trades">&#8635; Refresh</button>
-      <span class="refresh-info" id="trades-refresh-time"></span>
-    </div>
-    <div id="trades-count" style="font-size:.78rem;color:#8b949e;margin-bottom:.75rem"></div>
-    <div class="table-wrap">
-      <table id="trades-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th class="sortable" data-col="symbol">Symbol<span class="sort-icon"></span></th>
-            <th class="sortable" data-col="strategy">Strategy<span class="sort-icon"></span></th>
-            <th class="sortable" data-col="status">Status<span class="sort-icon"></span></th>
-            <th class="sortable" data-col="entryTime">Entry Time<span class="sort-icon sort-desc"></span></th>
-            <th class="sortable" data-col="entryPrice">Entry Price<span class="sort-icon"></span></th>
-            <th class="sortable" data-col="exitTime">Exit Time<span class="sort-icon"></span></th>
-            <th class="sortable" data-col="exitPrice">Exit Price<span class="sort-icon"></span></th>
-            <th class="sortable" data-col="quantity">Qty<span class="sort-icon"></span></th>
-            <th class="sortable" data-col="pnl">PnL (USDT)<span class="sort-icon"></span></th>
-            <th class="sortable" data-col="closeReason">Reason<span class="sort-icon"></span></th>
-          </tr>
-        </thead>
-        <tbody id="trades-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- ════════════════════════════ LOGS ════════════════════════════════ -->
-  <div id="page-logs" class="page">
-    <div class="toolbar">
-      <div class="filter-bar">
-        <span class="filter-label">Level:</span>
-        <select id="filter-log-level">
-          <option value="">All</option>
-          <option value="INFO">INFO</option>
-          <option value="WARN">WARN</option>
-          <option value="ERROR">ERROR</option>
-        </select>
-        <input id="filter-log-search" type="text" placeholder="Search message…" style="width:220px" />
-      </div>
-      <button class="btn" id="btn-refresh-logs">&#8635; Refresh</button>
-      <span class="refresh-info" id="logs-refresh-time"></span>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr><th style="width:200px">Time</th><th style="width:80px">Level</th><th>Message</th></tr>
-        </thead>
-        <tbody id="logs-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-
-
-  <!-- ════════════════════════════ SETTINGS ════════════════════════════ -->
-  <div id="page-settings" class="page">
-
-    <div class="section-header" style="margin-bottom:1.25rem"><h2>Strategy</h2></div>
-    <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:2rem">
-      <div class="card" style="min-width:230px;max-width:300px">
-        <div class="label">15m Trend</div>
-        <div style="margin-top:.75rem">
-          <button class="btn" id="settings-15m-toggle" style="min-width:110px">—</button>
+  <div class="toast-container position-fixed top-0 end-0 p-3 app-toast-container">
+    <div class="toast show border-0 shadow-lg mb-2" role="alert" aria-live="assertive" aria-atomic="true"
+      ng-repeat="toast in shell.toasts track by toast.id" ng-class="'toast-' + toast.type">
+      <div class="d-flex">
+        <div class="toast-body">
+          <strong ng-if="toast.title">{{ toast.title }}</strong>
+          <span ng-if="toast.title && toast.message"> - </span>
+          <span>{{ toast.message }}</span>
         </div>
-        <div class="card-sub" style="margin-top:.6rem">EMA50 / EMA200 / RSI14 &middot; :00/:15/:30/:45</div>
-      </div>
-      <div class="card" style="min-width:230px;max-width:300px">
-        <div class="label">5m Bounce</div>
-        <div style="margin-top:.75rem">
-          <button class="btn" id="settings-5m-toggle" style="min-width:110px">—</button>
-        </div>
-        <div class="card-sub" style="margin-top:.6rem">EMA9 / EMA21 / RSI14 &middot; every 5 minutes</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto"
+          aria-label="Close" ng-click="shell.dismissToast(toast.id)"></button>
       </div>
     </div>
-
-    <div class="section-header">
-      <h2>Watchlist</h2>
-      <span id="settings-wl-count" style="font-size:.78rem;color:#8b949e"></span>
-    </div>
-    <div style="display:flex;gap:.6rem;align-items:center;margin:1rem 0;flex-wrap:wrap">
-      <input id="settings-add-input" type="text" placeholder="Symbol (e.g. BTCUSDT)"
-        style="background:#161b22;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;
-               padding:.4rem .75rem;font-size:.82rem;outline:none;width:200px;text-transform:uppercase">
-      <button class="btn primary" id="settings-add-btn">+ Add</button>
-      <span id="settings-add-msg" style="font-size:.82rem"></span>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th style="width:44px">#</th><th>Symbol</th><th style="width:110px">Action</th></tr></thead>
-        <tbody id="settings-wl-tbody"></tbody>
-      </table>
-    </div>
-
   </div>
 
-</main>
-
-<script src="./assets/js/main.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+    integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular-route.min.js"></script>
+  <script src="/assets/js/app.js"></script>
+  <script src="/assets/js/services.js"></script>
+  <script src="/assets/js/controllers.js"></script>
 </body>
 </html>

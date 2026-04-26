@@ -1,0 +1,185 @@
+<section>
+  <div class="d-flex flex-column flex-lg-row align-items-lg-end justify-content-between gap-3 mb-4">
+    <div>
+      <p class="page-kicker">Dashboard</p>
+      <h1 class="page-title">Trading control center</h1>
+      <p class="text-muted-app mb-0">Balances, bot state, holdings, and open positions in one view.</p>
+    </div>
+    <div class="toolbar-actions d-flex flex-wrap gap-2">
+      <button type="button" class="btn" ng-class="vm.data && vm.data.isRunning ? 'btn-danger' : 'btn-primary'"
+        ng-click="vm.toggleBot()" ng-disabled="vm.actionLoading === 'bot' || vm.loading">
+        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" ng-if="vm.actionLoading === 'bot'"></span>
+        {{ vm.data && vm.data.isRunning ? 'Stop Bot' : 'Start Bot' }}
+      </button>
+      <button type="button" class="btn btn-outline-light" ng-click="vm.refresh(false)" ng-disabled="vm.loading">
+        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" ng-if="vm.loading"></span>
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <div class="alert alert-danger" role="alert" ng-if="vm.error">{{ vm.error }}</div>
+  <div class="alert alert-success" role="alert" ng-if="vm.success">{{ vm.success }}</div>
+
+  <div class="state-card text-center" ng-if="vm.loading && !vm.data">
+    <div class="spinner-border text-success mb-3" role="status" aria-hidden="true"></div>
+    <div class="fw-bold text-white">Loading dashboard</div>
+    <div>Fetching balances and position metrics.</div>
+  </div>
+
+  <div ng-if="vm.data">
+    <div class="row g-3 mb-4">
+      <div class="col-12 col-sm-6 col-xl-4">
+        <div class="metric-card p-3 p-lg-4">
+          <div class="metric-label">Total Balance</div>
+          <div class="metric-value">{{ vm.data.totalBalance | appMoney }}</div>
+          <div class="text-muted-app small">USDT {{ vm.data.usdtBalance | appMoney }} + Crypto {{ vm.data.cryptoValue | appMoney }}</div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-xl-4">
+        <div class="metric-card p-3 p-lg-4">
+          <div class="metric-label">USDT Free</div>
+          <div class="metric-value">{{ vm.data.usdtBalance | appMoney }}</div>
+          <div class="text-muted-app small">Available quote balance</div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-xl-4">
+        <div class="metric-card p-3 p-lg-4">
+          <div class="metric-label">Crypto Value</div>
+          <div class="metric-value">{{ vm.data.cryptoValue | appMoney }}</div>
+          <div class="text-muted-app small">Open position value</div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-xl-4">
+        <div class="metric-card p-3 p-lg-4">
+          <div class="metric-label">Total PnL</div>
+          <div class="metric-value" ng-class="{ positive: vm.data.totalPnl >= 0, negative: vm.data.totalPnl < 0 }">
+            {{ vm.data.totalPnl | appSigned:2:' USDT' }}
+          </div>
+          <div class="text-muted-app small">
+            R: {{ vm.data.realizedPnl | appSigned:2 }} / U: {{ vm.data.unrealizedPnl | appSigned:2 }}
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-xl-4">
+        <div class="metric-card p-3 p-lg-4">
+          <div class="metric-label">Open Trades</div>
+          <div class="metric-value">{{ vm.data.openTrades.length }}</div>
+          <div class="text-muted-app small">{{ vm.data.totalTrades }} total trade records</div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-xl-4">
+        <div class="metric-card p-3 p-lg-4">
+          <div class="metric-label">Win Rate</div>
+          <div class="metric-value" ng-class="{ positive: vm.data.winRate >= 50, negative: vm.data.winRate !== null && vm.data.winRate < 50 }">
+            <span ng-if="vm.data.winRate === null">-</span>
+            <span ng-if="vm.data.winRate !== null">{{ vm.data.winRate | appNumber:1 }}%</span>
+          </div>
+          <div class="text-muted-app small">{{ vm.data.closedTrades }} closed trade{{ vm.data.closedTrades === 1 ? '' : 's' }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="surface-card mb-4" ng-if="vm.data.cryptoAssets.length">
+      <div class="card-header bg-transparent border-0 p-3 p-lg-4 d-flex flex-column flex-lg-row justify-content-between gap-3">
+        <div>
+          <h2 class="section-title mb-1">Holdings</h2>
+          <p class="text-muted-app mb-0 small">{{ vm.selectionCount() }} selected for manual close.</p>
+        </div>
+        <div class="toolbar-actions d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-outline-light" ng-click="vm.sellSelected()"
+            ng-disabled="vm.actionLoading === 'sell' || !vm.selectionCount()">Sell Selected</button>
+          <button type="button" class="btn btn-danger" ng-click="vm.sellAll()"
+            ng-disabled="vm.actionLoading === 'sell' || !vm.data.openTrades.length">
+            <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" ng-if="vm.actionLoading === 'sell'"></span>
+            Sell All
+          </button>
+        </div>
+      </div>
+      <div class="table-shell mx-3 mx-lg-4 mb-3 mb-lg-4">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th class="text-center" style="width: 48px;">
+                <input class="form-check-input" type="checkbox" ng-model="vm.selectAll" ng-change="vm.toggleAllHoldings()" aria-label="Select all holdings" />
+              </th>
+              <th>Asset</th>
+              <th>Quantity</th>
+              <th>Current Price</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr ng-repeat="asset in vm.data.cryptoAssets track by asset.tradeId">
+              <td class="text-center">
+                <input class="form-check-input" type="checkbox" ng-model="vm.selectedHoldings[asset.tradeId]" ng-disabled="!asset.tradeId" aria-label="Select {{ asset.symbol }}" />
+              </td>
+              <td class="fw-bold text-white">{{ asset.asset }}</td>
+              <td>{{ asset.quantity | appNumber:6 }}</td>
+              <td>{{ asset.currentPrice | appMoney }}</td>
+              <td class="fw-bold">{{ asset.valueUsdt | appMoney }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h2 class="section-title mb-0">Open Positions</h2>
+      <span class="text-muted-app small" ng-if="vm.lastUpdated">Updated {{ vm.lastUpdated | date:'mediumTime' }}</span>
+    </div>
+
+    <div class="state-card text-center" ng-if="!vm.data.openTrades.length">
+      <div class="fw-bold text-white">No open positions</div>
+      <div>Positions will appear here after the bot opens trades.</div>
+    </div>
+
+    <div class="row g-3" ng-if="vm.data.openTrades.length">
+      <div class="col-12 col-lg-6 col-xxl-4" ng-repeat="trade in vm.data.openTrades track by trade.id">
+        <div class="open-position-card p-3 p-lg-4">
+          <div class="d-flex align-items-center justify-content-between mb-3">
+            <div class="fw-bold fs-5 text-white">{{ trade.symbol }}</div>
+            <span class="badge badge-soft-primary rounded-pill">OPEN</span>
+          </div>
+          <div class="position-grid">
+            <div>
+              <div class="position-label">Entry Price</div>
+              <div class="position-value">{{ trade.entryPrice | appMoney }}</div>
+            </div>
+            <div>
+              <div class="position-label">Current Price</div>
+              <div class="position-value">{{ trade.currentPrice | appMoney }}</div>
+            </div>
+            <div>
+              <div class="position-label">Quantity</div>
+              <div class="position-value">{{ trade.quantity | appNumber:6 }}</div>
+            </div>
+            <div>
+              <div class="position-label">Value</div>
+              <div class="position-value">{{ trade.positionValue | appMoney }}</div>
+            </div>
+            <div>
+              <div class="position-label">Unrealized PnL</div>
+              <div class="position-value" ng-class="{ positive: trade.unrealizedPnl >= 0, negative: trade.unrealizedPnl < 0 }">
+                {{ trade.unrealizedPnl | appSigned:2:' USDT' }}
+              </div>
+            </div>
+            <div>
+              <div class="position-label">Strategy</div>
+              <div class="position-value">{{ trade.strategy | strategyName }}</div>
+            </div>
+            <div>
+              <div class="position-label">Stop Loss</div>
+              <div class="position-value negative">{{ trade.stopLoss | appMoney }}</div>
+            </div>
+            <div>
+              <div class="position-label">Take Profit</div>
+              <div class="position-value positive">{{ trade.takeProfit | appMoney }}</div>
+            </div>
+          </div>
+          <div class="text-muted-app small mt-3">Entry: {{ trade.entryTime | appDateTime }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
