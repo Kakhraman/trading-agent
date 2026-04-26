@@ -3,11 +3,7 @@ const path = require('path');
 
 const DATA_DIR = path.join(__dirname, '../data');
 
-const DEFAULT_WATCHLIST = [
-  'BTCUSDT','ETHUSDT','BNBUSDT','XRPUSDT','SOLUSDT','TRXUSDT','DOGEUSDT',
-  'BCHUSDT','ADAUSDT','LINKUSDT','TONUSDT','SUIUSDT','AVAXUSDT','LTCUSDT',
-  'ASTERUSDT','AAVEUSDT','FILUSDT','ZROUSDT',
-];
+const DEFAULT_WATCHLIST = ['BTCUSDT','ETHUSDT','BNBUSDT','XRPUSDT','SOLUSDT','DOGEUSDT'];
 
 const FILES = {
   trades:   path.join(DATA_DIR, 'trades.json'),

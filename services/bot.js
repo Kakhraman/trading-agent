@@ -6,10 +6,7 @@ const logger = require('../utils/logger');
 
 // ── Settings (data/settings.json) ─────────────────────────────────────────────
 const _s           = read('settings') || {};
-let _watchlist     = Array.isArray(_s.watchlist) && _s.watchlist.length ? [..._s.watchlist]
-  : ['BTCUSDT','ETHUSDT','BNBUSDT','XRPUSDT','SOLUSDT','TRXUSDT','DOGEUSDT',
-     'BCHUSDT','ADAUSDT','LINKUSDT','TONUSDT','SUIUSDT','AVAXUSDT','LTCUSDT',
-     'ASTERUSDT','AAVEUSDT','FILUSDT','ZROUSDT'];
+let _watchlist = [...(_s.watchlist || [])];
 let _tick15mEnabled = _s.tick15mEnabled !== false;
 let _tick5mEnabled  = _s.tick5mEnabled  !== false;
 
