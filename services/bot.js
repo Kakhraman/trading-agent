@@ -116,7 +116,11 @@ async function openTrade(symbol, price, opts) {
 
   const order = await placeMarketOrder(symbol, 'BUY', quantity);
   const executedPrice = calcExecutedPrice(order, price);
-  const executedQty   = parseFloat(order.executedQty);
+  const base          = symbol.replace('USDT', '');
+  const baseFees      = (order.fills || [])
+    .filter(f => f.commissionAsset === base)
+    .reduce((s, f) => s + parseFloat(f.commission), 0);
+  const executedQty   = parseFloat(order.executedQty) - baseFees;
 
   const trade = {
     id:         order.orderId.toString(),
@@ -137,7 +141,6 @@ async function openTrade(symbol, price, opts) {
   logger.info(`[${symbol}][${strategy}] Trade opened id=${trade.id}`);
 
   const { free: newUsdt } = await getBalance('USDT');
-  const base = symbol.replace('USDT', '');
   const { free: baseBalance } = await getBalance(base).catch(() => ({ free: 0 }));
   append('balance', { timestamp: new Date().toISOString(), USDT: newUsdt, [base]: baseBalance, event: 'BUY', symbol, strategy });
 }
@@ -145,9 +148,13 @@ async function openTrade(symbol, price, opts) {
 async function closeTrade(trade, price, reason) {
   logger.info(`[${trade.symbol}][${trade.strategy || '15m'}] Closing id=${trade.id}, reason=${reason} @ ${price.toFixed(4)}`);
 
-  const order = await placeMarketOrder(trade.symbol, 'SELL', trade.quantity);
+  const base = trade.symbol.replace('USDT', '');
+  const { free: heldQty } = await getBalance(base).catch(() => ({ free: trade.quantity }));
+  const sellQty = heldQty > 0 ? Math.min(trade.quantity, heldQty) : trade.quantity;
+
+  const order = await placeMarketOrder(trade.symbol, 'SELL', sellQty);
   const executedPrice = calcExecutedPrice(order, price);
-  const pnl = (executedPrice - trade.entryPrice) * trade.quantity;
+  const pnl = (executedPrice - trade.entryPrice) * sellQty;
 
   updateTrade(trade.id, {
     status:      'CLOSED',
@@ -157,11 +164,10 @@ async function closeTrade(trade, price, reason) {
     closeReason: reason,
   });
 
-  await notifySell({ symbol: trade.symbol, price: executedPrice, quantity: trade.quantity, pnl, tradeId: trade.id });
+  await notifySell({ symbol: trade.symbol, price: executedPrice, quantity: sellQty, pnl, tradeId: trade.id });
   logger.info(`[${trade.symbol}][${trade.strategy || '15m'}] Closed id=${trade.id}, PnL=${pnl.toFixed(4)} USDT`);
 
   const { free: newUsdt } = await getBalance('USDT');
-  const base = trade.symbol.replace('USDT', '');
   const { free: baseBalance } = await getBalance(base).catch(() => ({ free: 0 }));
   append('balance', { timestamp: new Date().toISOString(), USDT: newUsdt, [base]: baseBalance, event: 'SELL', symbol: trade.symbol, pnl });
 }
