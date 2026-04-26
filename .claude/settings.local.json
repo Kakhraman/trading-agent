@@ -17,7 +17,16 @@
       "Bash(gh repo:*)",
       "mcp__Claude_Preview__preview_start",
       "WebFetch(domain:developers.binance.com)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(pkill *)",
+      "Bash(npm start *)",
+      "Bash(rtk read *)",
+      "Bash(xargs kill *)",
+      "Bash(rtk grep *)",
+      "Bash(rtk ls *)",
+      "Bash(rtk ps *)",
+      "Bash(python3 -c ' *)",
+      "Bash(rtk git *)"
     ]
   }
 }
