@@ -1,4 +1,4 @@
-const { getKlines, getPrice, getBalance, placeMarketOrder } = require('./binance');
+const { getKlines, getPrice, getBalance, getAllBalances, placeMarketOrder } = require('./binance');
 const { computeIndicators, computeBounceIndicators, isNear } = require('./indicators');
 const { notifyBuy, notifySell, notifyError } = require('./telegram');
 const { append, updateTrade, getOpenTrade, read, write } = require('../utils/db');
@@ -290,7 +290,8 @@ async function getStatus() {
     ? (closedTrades.filter(t => typeof t.pnl === 'number' && t.pnl > 0).length / closedTrades.length) * 100
     : null;
 
-  const { free: usdtBalance } = await getBalance('USDT').catch(() => ({ free: 0 }));
+  const { usdt: { free: usdtBalance }, assets: accountAssets } =
+    await getAllBalances().catch(() => ({ usdt: { free: 0 }, assets: [] }));
 
   const enrichedOpenTrades = await Promise.all(
     openTrades.map(async t => {
@@ -305,19 +306,41 @@ async function getStatus() {
     })
   );
 
-  const cryptoValue    = enrichedOpenTrades.reduce((s, t) => s + (t.positionValue  ?? 0), 0);
-  const unrealizedPnl  = enrichedOpenTrades.reduce((s, t) => s + (t.unrealizedPnl  ?? 0), 0);
-  const totalBalance   = usdtBalance + cryptoValue;
-  const totalPnl       = realizedPnl + unrealizedPnl;
+  // Assets already managed by bot trades — don't double-count them
+  const botAssets = new Set(openTrades.map(t => t.symbol.replace('USDT', '')));
 
-  const cryptoAssets = enrichedOpenTrades.map(t => ({
-    tradeId:      t.id,
-    asset:        t.symbol.replace('USDT', ''),
-    symbol:       t.symbol,
-    quantity:     t.quantity,
-    currentPrice: t.currentPrice,
-    valueUsdt:    t.positionValue,
-  }));
+  const externalAssets = await Promise.all(
+    accountAssets
+      .filter(b => !botAssets.has(b.asset) && b.free > 0)
+      .map(async b => {
+        const symbol = b.asset + 'USDT';
+        try {
+          const price = await getPrice(symbol);
+          return { tradeId: null, asset: b.asset, symbol, quantity: b.free, currentPrice: price, valueUsdt: price * b.free, external: true };
+        } catch {
+          return { tradeId: null, asset: b.asset, symbol, quantity: b.free, currentPrice: null, valueUsdt: null, external: true };
+        }
+      })
+  );
+
+  const botCryptoValue    = enrichedOpenTrades.reduce((s, t) => s + (t.positionValue  ?? 0), 0);
+  const externalCryptoValue = externalAssets.reduce((s, a) => s + (a.valueUsdt ?? 0), 0);
+  const cryptoValue       = botCryptoValue + externalCryptoValue;
+  const unrealizedPnl     = enrichedOpenTrades.reduce((s, t) => s + (t.unrealizedPnl  ?? 0), 0);
+  const totalBalance      = usdtBalance + cryptoValue;
+  const totalPnl          = realizedPnl + unrealizedPnl;
+
+  const cryptoAssets = [
+    ...enrichedOpenTrades.map(t => ({
+      tradeId:      t.id,
+      asset:        t.symbol.replace('USDT', ''),
+      symbol:       t.symbol,
+      quantity:     t.quantity,
+      currentPrice: t.currentPrice,
+      valueUsdt:    t.positionValue,
+    })),
+    ...externalAssets,
+  ];
 
   return {
     isRunning:       _isRunning,

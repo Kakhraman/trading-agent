@@ -110,11 +110,14 @@
             </tr>
           </thead>
           <tbody>
-            <tr ng-repeat="asset in vm.data.cryptoAssets track by asset.tradeId">
+            <tr ng-repeat="asset in vm.data.cryptoAssets track by $index">
               <td class="text-center">
                 <input class="form-check-input" type="checkbox" ng-model="vm.selectedHoldings[asset.tradeId]" ng-disabled="!asset.tradeId" aria-label="Select {{ asset.symbol }}" />
               </td>
-              <td class="fw-bold text-white">{{ asset.asset }}</td>
+              <td class="fw-bold text-white">
+                {{ asset.asset }}
+                <span class="badge badge-soft-secondary ms-1" ng-if="asset.external">External</span>
+              </td>
               <td>{{ asset.quantity | appNumber:6 }}</td>
               <td>{{ asset.currentPrice | appMoney }}</td>
               <td class="fw-bold">{{ asset.valueUsdt | appMoney }}</td>

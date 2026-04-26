@@ -163,6 +163,21 @@ async function getBalance(asset = 'USDT') {
     : { free: 0, locked: 0 };
 }
 
+async function getAllBalances() {
+  const account = await getAccountInfo();
+  const result = { usdt: { free: 0, locked: 0 }, assets: [] };
+  for (const b of account.balances) {
+    const free   = parseFloat(b.free);
+    const locked = parseFloat(b.locked);
+    if (b.asset === 'USDT') {
+      result.usdt = { free, locked };
+    } else if (free + locked > 0) {
+      result.assets.push({ asset: b.asset, free, locked });
+    }
+  }
+  return result;
+}
+
 async function placeMarketOrder(symbol, side, quantity) {
   const stepSize  = await getStepSize(symbol);
   const adjQty    = stepSize ? floorToStepSize(quantity, stepSize) : quantity;
@@ -189,6 +204,6 @@ async function getOpenOrders(symbol) {
 
 module.exports = {
   getKlines, getPrice,
-  getExchangeInfo, getAccountInfo, getBalance,
+  getExchangeInfo, getAccountInfo, getBalance, getAllBalances,
   placeMarketOrder, getOpenOrders,
 };
