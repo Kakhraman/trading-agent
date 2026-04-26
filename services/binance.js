@@ -3,7 +3,7 @@ const crypto = require('node:crypto');
 const fs     = require('fs');
 const path   = require('path');
 
-const { updateFromHeaders, throttle, WEIGHT } = require('../utils/rateLimit');
+const { createRateLimiter, WEIGHT } = require('../utils/rateLimit');
 const logger = require('../utils/logger');
 
 const BASE_URL        = 'https://demo-api.binance.com/api'; // orders & account (Spot Demo)
@@ -11,12 +11,14 @@ const MARKET_BASE_URL = 'https://api.binance.com/api';      // klines & price (r
 const API_KEY         = process.env.BINANCE_API_KEY;
 const API_SECRET      = process.env.BINANCE_API_SECRET;
 
+// Separate rate limit pools — market and demo-private are independent servers
+const marketRL  = createRateLimiter('market');
+const privateRL = createRateLimiter('demo');
+
 // ── File-based klines cache ───────────────────────────────────────────────────
 
 const CACHE_DIR = path.join(__dirname, '../data/cache');
 
-// TTL is set just under each interval's candle period so ticks always see
-// fresh data at their scheduled time, but watchlist reuses the last tick fetch.
 const KLINES_TTL = { '15m': 14 * 60_000, '5m': 4 * 60_000 };
 const KLINES_TTL_DEFAULT = 60_000;
 
@@ -52,10 +54,10 @@ function buildQuery(params) {
   return Object.entries(params).map(([k, v]) => `${k}=${v}`).join('&');
 }
 
-function _addInterceptors(client) {
+function _addInterceptors(client, rl) {
   client.interceptors.response.use(
     res => {
-      updateFromHeaders(res.headers);
+      rl.updateFromHeaders(res.headers);
       return res;
     },
     async err => {
@@ -80,8 +82,8 @@ const privateClient = axios.create({
   headers: { 'X-MBX-APIKEY': API_KEY },
 });
 
-_addInterceptors(marketClient);
-_addInterceptors(privateClient);
+_addInterceptors(marketClient, marketRL);
+_addInterceptors(privateClient, privateRL);
 
 // ── Exchange info (memory cache, 1h TTL) ─────────────────────────────────────
 
@@ -92,7 +94,7 @@ async function getExchangeInfo() {
   if (_exchangeInfoCache && Date.now() - _exchangeInfoCacheAt < EXCHANGE_INFO_TTL) {
     return _exchangeInfoCache;
   }
-  await throttle(WEIGHT.exchangeInfo);
+  await marketRL.throttle(WEIGHT.exchangeInfo);
   const { data } = await marketClient.get('/v3/exchangeInfo');
   _exchangeInfoCache    = data;
   _exchangeInfoCacheAt  = Date.now();
@@ -119,7 +121,7 @@ async function getKlines(symbol, interval = '15m', limit = 1000) {
   const cached = _readKlinesCache(symbol, interval);
   if (cached) return cached;
 
-  await throttle(WEIGHT.klines(limit));
+  await marketRL.throttle(WEIGHT.klines(limit));
   const { data } = await marketClient.get('/v3/klines', {
     params: { symbol, interval, limit },
   });
@@ -137,17 +139,17 @@ async function getKlines(symbol, interval = '15m', limit = 1000) {
 }
 
 async function getPrice(symbol) {
-  await throttle(WEIGHT.tickerPrice);
+  await marketRL.throttle(WEIGHT.tickerPrice);
   const { data } = await marketClient.get('/v3/ticker/price', { params: { symbol } });
   return parseFloat(data.price);
 }
 
-// ── Private endpoints ─────────────────────────────────────────────────────────
+// ── Private endpoints (Spot Demo — demo-api.binance.com) ─────────────────────
 
 async function getAccountInfo() {
-  await throttle(WEIGHT.account);
+  await privateRL.throttle(WEIGHT.account);
   const timestamp = Date.now();
-  const query     = buildQuery({ timestamp });
+  const query     = buildQuery({ timestamp, recvWindow: 5000 });
   const signature = sign(query);
   const { data }  = await privateClient.get(`/v3/account?${query}&signature=${signature}`);
   return data;
@@ -168,18 +170,18 @@ async function placeMarketOrder(symbol, side, quantity) {
   const qtyStr    = adjQty.toFixed(precision);
 
   const timestamp = Date.now();
-  const params    = { symbol, side, type: 'MARKET', quantity: qtyStr, timestamp };
+  const params    = { symbol, side, type: 'MARKET', quantity: qtyStr, timestamp, recvWindow: 5000 };
   const query     = buildQuery(params);
   const signature = sign(query);
-  await throttle(WEIGHT.order);
+  await privateRL.throttle(WEIGHT.order);
   const { data } = await privateClient.post(`/v3/order?${query}&signature=${signature}`);
   return data;
 }
 
 async function getOpenOrders(symbol) {
-  await throttle(WEIGHT.openOrders);
+  await privateRL.throttle(WEIGHT.openOrders);
   const timestamp = Date.now();
-  const query     = buildQuery({ symbol, timestamp });
+  const query     = buildQuery({ symbol, timestamp, recvWindow: 5000 });
   const signature = sign(query);
   const { data }  = await privateClient.get(`/v3/openOrders?${query}&signature=${signature}`);
   return data;
